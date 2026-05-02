@@ -9,7 +9,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 
 import Dashboard from "@/pages/dashboard";
-import Sources from "@/pages/sources";
 import Operators from "@/pages/operators";
 import Runs from "@/pages/runs";
 import { Layout } from "@/components/layout";
@@ -142,9 +141,6 @@ function ClerkProviderWithRoutes() {
           <Route path="/sign-up/*?" component={SignUpPage} />
           <Route path="/">
             <ProtectedRoute component={Dashboard} />
-          </Route>
-          <Route path="/sources">
-            <ProtectedRoute component={Sources} />
           </Route>
           <Route path="/operators">
             <ProtectedRoute component={Operators} />

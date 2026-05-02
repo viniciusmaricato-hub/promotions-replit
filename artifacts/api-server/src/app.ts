@@ -35,19 +35,41 @@ app.use(
 
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
-  : [process.env.FRONTEND_URL].filter(Boolean);
+const allowedOrigins = (
+  process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+    : [process.env.FRONTEND_URL].filter(Boolean)
+).filter((o): o is string => !!o);
+
+const isProduction = process.env.NODE_ENV === "production";
+
+if (allowedOrigins.length === 0) {
+  if (isProduction) {
+    throw new Error(
+      "Refusing to start in production with no CORS allowlist. " +
+        "Set ALLOWED_ORIGINS or FRONTEND_URL.",
+    );
+  }
+  logger.warn(
+    "No CORS allowlist configured; allowing same-origin requests only. " +
+      "Set ALLOWED_ORIGINS or FRONTEND_URL to permit cross-origin clients.",
+  );
+}
 
 app.use(
   cors({
     credentials: true,
     origin: (origin, cb) => {
-      if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      // Same-origin / non-browser requests have no Origin header.
+      if (!origin) {
         cb(null, true);
-      } else {
-        cb(new Error("Not allowed by CORS"));
+        return;
       }
+      if (allowedOrigins.includes(origin)) {
+        cb(null, true);
+        return;
+      }
+      cb(new Error("Not allowed by CORS"));
     },
   }),
 );
