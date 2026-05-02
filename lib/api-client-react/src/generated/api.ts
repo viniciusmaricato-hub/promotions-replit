@@ -21,6 +21,8 @@ import type {
   CreateSourceBody,
   ErrorResponse,
   HealthStatus,
+  ImportOperatorsBody,
+  ImportOperatorsResponse,
   ListPromotionsParams,
   ListPromotionsResponse,
   ListRunsParams,
@@ -781,6 +783,97 @@ export const useCreateOperator = <
   TContext
 > => {
   return useMutation(getCreateOperatorMutationOptions(options));
+};
+
+/**
+ * Accepts a list of operators and upserts them by name. Existing
+operators are updated (merging non-empty handles); new operators
+are created. Rows missing both handles or with invalid URLs are
+rejected and reported in the response.
+
+ * @summary Bulk import operators (upsert by name)
+ */
+export const getImportOperatorsUrl = () => {
+  return `/api/operators/import`;
+};
+
+export const importOperators = async (
+  importOperatorsBody: ImportOperatorsBody,
+  options?: RequestInit,
+): Promise<ImportOperatorsResponse> => {
+  return customFetch<ImportOperatorsResponse>(getImportOperatorsUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(importOperatorsBody),
+  });
+};
+
+export const getImportOperatorsMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof importOperators>>,
+    TError,
+    { data: BodyType<ImportOperatorsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof importOperators>>,
+  TError,
+  { data: BodyType<ImportOperatorsBody> },
+  TContext
+> => {
+  const mutationKey = ["importOperators"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof importOperators>>,
+    { data: BodyType<ImportOperatorsBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return importOperators(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ImportOperatorsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof importOperators>>
+>;
+export type ImportOperatorsMutationBody = BodyType<ImportOperatorsBody>;
+export type ImportOperatorsMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Bulk import operators (upsert by name)
+ */
+export const useImportOperators = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof importOperators>>,
+    TError,
+    { data: BodyType<ImportOperatorsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof importOperators>>,
+  TError,
+  { data: BodyType<ImportOperatorsBody> },
+  TContext
+> => {
+  return useMutation(getImportOperatorsMutationOptions(options));
 };
 
 /**

@@ -303,6 +303,42 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /operators/import:
+    post:
+      operationId: importOperators
+      tags: [operators]
+      summary: Bulk import operators (upsert by name)
+      description: |
+        Accepts a list of operators and upserts them by name. Existing
+        operators are updated (merging non-empty handles); new operators
+        are created. Rows missing both handles or with invalid URLs are
+        rejected and reported in the response.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportOperatorsBody"
+      responses:
+        "200":
+          description: Import results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportOperatorsResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /operators/{id}:
     patch:
       operationId: updateOperator
@@ -637,6 +673,62 @@ components:
           type: ["string", "null"]
         active:
           type: boolean
+
+    ImportOperatorRow:
+      type: object
+      properties:
+        name:
+          type: string
+        homepageUrl:
+          type: ["string", "null"]
+        instagramHandle:
+          type: ["string", "null"]
+        telegramHandle:
+          type: ["string", "null"]
+      required:
+        - name
+
+    ImportOperatorsBody:
+      type: object
+      properties:
+        operators:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportOperatorRow"
+      required:
+        - operators
+
+    ImportRowError:
+      type: object
+      properties:
+        row:
+          type: integer
+        name:
+          type: string
+        error:
+          type: string
+      required:
+        - row
+        - error
+
+    ImportOperatorsResponse:
+      type: object
+      properties:
+        created:
+          type: integer
+        updated:
+          type: integer
+        skipped:
+          type: integer
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportRowError"
+      required:
+        - created
+        - updated
+        - skipped
+        - errors
 
     RunLog:
       type: object

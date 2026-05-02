@@ -144,6 +144,33 @@ export interface UpdateOperatorBody {
   active?: boolean;
 }
 
+export interface ImportOperatorRow {
+  name: string;
+  /** @nullable */
+  homepageUrl?: string | null;
+  /** @nullable */
+  instagramHandle?: string | null;
+  /** @nullable */
+  telegramHandle?: string | null;
+}
+
+export interface ImportOperatorsBody {
+  operators: ImportOperatorRow[];
+}
+
+export interface ImportRowError {
+  row: number;
+  name?: string;
+  error: string;
+}
+
+export interface ImportOperatorsResponse {
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: ImportRowError[];
+}
+
 export type RunLogStatus = (typeof RunLogStatus)[keyof typeof RunLogStatus];
 
 export const RunLogStatus = {

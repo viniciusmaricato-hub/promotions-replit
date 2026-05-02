@@ -198,6 +198,38 @@ export const CreateOperatorBody = zod.object({
 });
 
 /**
+ * Accepts a list of operators and upserts them by name. Existing
+operators are updated (merging non-empty handles); new operators
+are created. Rows missing both handles or with invalid URLs are
+rejected and reported in the response.
+
+ * @summary Bulk import operators (upsert by name)
+ */
+export const ImportOperatorsBody = zod.object({
+  operators: zod.array(
+    zod.object({
+      name: zod.string(),
+      homepageUrl: zod.string().nullish(),
+      instagramHandle: zod.string().nullish(),
+      telegramHandle: zod.string().nullish(),
+    }),
+  ),
+});
+
+export const ImportOperatorsResponse = zod.object({
+  created: zod.number(),
+  updated: zod.number(),
+  skipped: zod.number(),
+  errors: zod.array(
+    zod.object({
+      row: zod.number(),
+      name: zod.string().optional(),
+      error: zod.string(),
+    }),
+  ),
+});
+
+/**
  * @summary Update or deactivate an operator
  */
 export const UpdateOperatorParams = zod.object({

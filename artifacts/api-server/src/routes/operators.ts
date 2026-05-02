@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db, operatorsTable } from "@workspace/db";
 import {
   CreateOperatorBody,
@@ -7,6 +7,8 @@ import {
   UpdateOperatorBody,
   ListOperatorsResponse,
   UpdateOperatorResponse,
+  ImportOperatorsBody,
+  ImportOperatorsResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
 
@@ -87,6 +89,149 @@ router.post("/operators", requireAuth, async (req, res): Promise<void> => {
     }
     throw err;
   }
+});
+
+router.post("/operators/import", requireAuth, async (req, res): Promise<void> => {
+  const parsed = ImportOperatorsBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  if (parsed.data.operators.length === 0) {
+    res.status(400).json({ error: "No operators to import." });
+    return;
+  }
+
+  if (parsed.data.operators.length > 1000) {
+    res.status(400).json({ error: "Too many rows (max 1000 per import)." });
+    return;
+  }
+
+  const errors: { row: number; name?: string; error: string }[] = [];
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+  const seenNames = new Set<string>();
+
+  for (let i = 0; i < parsed.data.operators.length; i++) {
+    const raw = parsed.data.operators[i]!;
+    const rowNumber = i + 1;
+    const name = (raw.name ?? "").trim();
+
+    if (name.length === 0) {
+      errors.push({ row: rowNumber, error: "Missing operator name." });
+      skipped++;
+      continue;
+    }
+
+    const nameKey = name.toLowerCase();
+    if (seenNames.has(nameKey)) {
+      errors.push({
+        row: rowNumber,
+        name,
+        error: "Duplicate operator name in the import file.",
+      });
+      skipped++;
+      continue;
+    }
+    seenNames.add(nameKey);
+
+    const homepageUrl = normalize(raw.homepageUrl);
+    const instagramHandle = normalize(raw.instagramHandle);
+    const telegramHandle = normalize(raw.telegramHandle);
+
+    if (homepageUrl && !isValidHttpUrl(homepageUrl)) {
+      errors.push({
+        row: rowNumber,
+        name,
+        error: "Home page must be a valid http(s) URL.",
+      });
+      skipped++;
+      continue;
+    }
+
+    try {
+      // Case-insensitive lookup so "BetMGM" and "betmgm" map to the same row.
+      // Fetch up to 2 to detect ambiguous case-variant duplicates rather than
+      // silently updating an arbitrary one.
+      const matches = await db
+        .select()
+        .from(operatorsTable)
+        .where(sql`LOWER(${operatorsTable.name}) = ${nameKey}`)
+        .orderBy(operatorsTable.id)
+        .limit(2);
+
+      if (matches.length > 1) {
+        errors.push({
+          row: rowNumber,
+          name,
+          error: `Multiple existing operators match this name (case-insensitive): ${matches
+            .map((m) => `"${m.name}"`)
+            .join(", ")}. Resolve duplicates before importing.`,
+        });
+        skipped++;
+        continue;
+      }
+
+      const existing = matches[0];
+
+      if (existing) {
+        // Merge: blank columns preserve existing values
+        const nextHomepage = homepageUrl ?? existing.homepageUrl;
+        const nextInstagram = instagramHandle ?? existing.instagramHandle;
+        const nextTelegram = telegramHandle ?? existing.telegramHandle;
+
+        if (existing.active && !nextInstagram && !nextTelegram) {
+          errors.push({
+            row: rowNumber,
+            name,
+            error:
+              "Active operator must keep at least one handle. Provide a handle or deactivate first.",
+          });
+          skipped++;
+          continue;
+        }
+
+        await db
+          .update(operatorsTable)
+          .set({
+            homepageUrl: nextHomepage,
+            instagramHandle: nextInstagram,
+            telegramHandle: nextTelegram,
+            updatedAt: new Date(),
+          })
+          .where(eq(operatorsTable.id, existing.id));
+        updated++;
+      } else {
+        if (!instagramHandle && !telegramHandle) {
+          errors.push({
+            row: rowNumber,
+            name,
+            error: "New operators need at least one handle (Instagram or Telegram).",
+          });
+          skipped++;
+          continue;
+        }
+
+        await db.insert(operatorsTable).values({
+          name,
+          homepageUrl,
+          instagramHandle,
+          telegramHandle,
+        });
+        created++;
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push({ row: rowNumber, name, error: msg });
+      skipped++;
+    }
+  }
+
+  res.json(
+    ImportOperatorsResponse.parse({ created, updated, skipped, errors }),
+  );
 });
 
 router.patch("/operators/:id", requireAuth, async (req, res): Promise<void> => {

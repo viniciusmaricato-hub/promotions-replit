@@ -34,7 +34,8 @@ import {
 } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Pencil, Plus, ExternalLink, Instagram, Send } from "lucide-react";
+import { Pencil, Plus, ExternalLink, Instagram, Send, Upload } from "lucide-react";
+import { ImportOperatorsDialog } from "@/components/import-operators-dialog";
 
 const operatorSchema = z
   .object({
@@ -181,6 +182,7 @@ export default function Operators() {
   const updateOperator = useUpdateOperator();
 
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [editing, setEditing] = useState<OperatorRow | null>(null);
 
   const handleCreate = (data: OperatorFormData) => {
@@ -258,26 +260,41 @@ export default function Operators() {
           </p>
         </div>
 
-        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" /> Add Operator
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Operator</DialogTitle>
-            </DialogHeader>
-            <OperatorForm
-              defaultValues={{ name: "", homepageUrl: "", instagramHandle: "", telegramHandle: "" }}
-              onSubmit={handleCreate}
-              isPending={createOperator.isPending}
-              onCancel={() => setIsAddOpen(false)}
-              submitLabel="Add Operator"
-            />
-          </DialogContent>
-        </Dialog>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => setIsImportOpen(true)}
+          >
+            <Upload className="h-4 w-4" /> Import CSV
+          </Button>
+
+          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" /> Add Operator
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Operator</DialogTitle>
+              </DialogHeader>
+              <OperatorForm
+                defaultValues={{ name: "", homepageUrl: "", instagramHandle: "", telegramHandle: "" }}
+                onSubmit={handleCreate}
+                isPending={createOperator.isPending}
+                onCancel={() => setIsAddOpen(false)}
+                submitLabel="Add Operator"
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
+
+      <ImportOperatorsDialog
+        open={isImportOpen}
+        onOpenChange={setIsImportOpen}
+      />
 
       <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
         <DialogContent>
