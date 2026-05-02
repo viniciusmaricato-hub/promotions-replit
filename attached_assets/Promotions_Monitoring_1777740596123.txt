@@ -1,0 +1,208 @@
+# tl;dr
+
+A daily-run internal tool that monitors competitor betting operators' social media channels (Instagram and Telegram), extracts promotion details using AI, and surfaces them in a structured dashboard for marketing and analyst teams. The system ingests raw social posts, parses them into structured promotion records, and presents them in a filterable table — enabling competitive intelligence on offers, rewards, and requirements without manual research.
+
+---
+
+# Goals
+
+## Business Goals
+
+* Reduce time spent on manual competitor promo research by 80% within 60 days of launch
+* Monitor at least 10 competitor operators across Instagram and Telegram from day one
+* Achieve 85%+ accuracy in AI-extracted promotion fields (validated by analyst spot-checks)
+* Give the marketing team a daily-refresh view of competitor promotions, filterable by operator and promo type
+
+## User Goals
+
+* Analysts can quickly scan all competitor promotions published in the last 24–48 hours without visiting individual social pages
+* Marketing managers can filter for no-deposit promotions to identify easy-win competitive benchmarks
+* Users can drill into the raw source post when AI extraction confidence is low
+* Teams can export the promotions table to CSV for reporting and slide decks
+
+## Non-Goals
+
+* This tool does not automate the creation or publishing of BetMGM or LeoVegas promotions
+* It does not monitor websites, emails, or push notifications — only Instagram and Telegram
+* It does not provide real-time or live monitoring; daily batch runs are sufficient for v1
+
+---
+
+# User Stories
+
+## Marketing Manager
+
+* As a marketing manager, I want to see all competitor promotions published in the last 7 days, so that I can benchmark our offers against the market.
+* As a marketing manager, I want to filter by "no deposit required" promotions, so that I can quickly identify high-conversion competitor offers to respond to.
+* As a marketing manager, I want to filter by operator and promo type, so that I can focus on the most relevant competitive signals for a campaign I'm planning.
+
+## Analyst
+
+* As an analyst, I want to see the raw source post URL alongside extracted data, so that I can verify details when the AI confidence score is Medium or Low.
+* As an analyst, I want to export the promotions table to CSV, so that I can include competitive data in weekly reports.
+* As an analyst, I want to see when each promotion was last detected and when it was first published, so that I can track how long competitors run specific offers.
+
+## Ops / Admin
+
+* As an ops user, I want to manage the list of monitored operator accounts, so that I can add or remove sources without touching code.
+* As an ops user, I want to see ingestion run logs (success, errors, records created), so that I can diagnose failures quickly.
+
+---
+
+# Functional Requirements
+
+## Promotions Dashboard (P0)
+
+* Promotions Table: Displays all extracted promotions in a paginated, sortable table with the columns defined in the Data Model section
+* Filtering: Filter by operator, platform (Instagram / Telegram), promo type, requires_deposit (yes/no), date range, and AI confidence score
+* Search: Free-text search across offer details and operator name
+* Row Expand / Detail View: Click a row to see full extracted fields plus the raw post text and source URL
+* No-Deposit Highlight: Rows where requires_deposit = false are visually highlighted (e.g. a badge or row accent colour) to make them immediately scannable
+* CSV Export: Export current filtered view to CSV
+
+## Data Ingestion Pipeline (P0)
+
+* Telegram Scraper: Pull new posts from a configured list of public operator Telegram channels. Runs daily via cron.
+* Instagram Scraper: Fetches latest posts from a configured list of operator Instagram profiles.
+* LLM Extraction: After each post is fetched, a LLM parses the raw post text and extracts structured promotion fields. Prompt is version-controlled and tunable.
+* Deduplication: Posts are deduplicated by source URL + post ID before insert. Re-runs do not create duplicate records.
+* Confidence Scoring: LLM returns a confidence field (High / Medium / Low) indicating how completely it could extract structured data from the post text.
+* Error Logging: Each pipeline run writes a log entry to a runs table: timestamp, source, records fetched, records inserted, errors.
+
+## Operator Management (P1)
+
+* Admin page listing all monitored operators and their associated Instagram handle and/or Telegram channel
+* Ability to add, edit, or deactivate an operator source from the UI (writes to a sources table in Supabase)
+* Active/inactive toggle so sources can be paused without deletion
+
+## Run Logs View (P1)
+
+* Simple table showing recent ingestion runs: date, source, status, records created, error messages if any
+* Useful for ops to diagnose scraper failures or data gaps
+
+## Authentication (P1)
+
+* Simple email/password login via Supabase Auth
+* No public access — all pages behind auth
+* Single role for v1 (no admin vs read-only distinction needed yet)
+
+---
+
+# User Experience
+
+## Entry Point & First-Time Experience
+
+Users access the tool via a web URL. They land on a login screen (Supabase Auth). On first load after login, the dashboard renders the promotions table pre-filtered to the last 7 days. An empty state message appears if no promotions have been ingested yet, with a note on when the next scheduled run is.
+
+## Core Experience
+
+* Step 1: User lands on the Promotions Dashboard. The table loads with the most recent promotions at the top, sorted by post date descending.
+* Step 2: User applies filters — e.g. selects "No Deposit Required" toggle, selects operator "LeoVegas", sets date range to last 14 days. Table updates instantly (client-side filtering or Supabase query).
+* Step 3: User clicks a row to expand the detail panel. They see all structured fields, the raw post text, the source URL (opens in new tab), and the AI confidence score with a short explanation of what was or wasn't extracted cleanly.
+* Step 4: User clicks "Export CSV" to download the current filtered view.
+* Step 5 (Ops): User navigates to the Operator Sources page, adds a new operator by entering name, platform, and handle/channel URL, and saves. The source appears in the next daily run.
+
+## Edge Cases
+
+* Post text is too short or ambiguous for LLM extraction: confidence score is set to Low, fields are left null, raw post text is still stored and visible.
+* Duplicate post detected on re-run: silently skipped, no duplicate record created.
+* No promotions match active filters: empty state with a clear message ("No promotions match your current filters") and a reset filters button.
+* Session expires: user redirected to login, returned to previous page after re-auth.
+
+---
+
+# Narrative
+
+Sarah is a marketing manager at BetMGM UK. Every Monday morning she used to spend 45 minutes manually checking LeoVegas, bet365, and William Hill's Instagram and Telegram channels to see what promotions they were running. Half the time she'd miss something, and the rest of the time she was copying details into a spreadsheet by hand.
+
+Now she opens the Promotions Monitor dashboard with her morning coffee. The table already shows 23 new promotions published over the weekend across 8 operators. She clicks the "No Deposit Required" filter and sees three competitor offers flagged — one from LeoVegas offering 20 free spins with no deposit, published Saturday. She clicks the row, reads the full extracted details and the original post, and forwards it to her team lead with a note: "We should respond to this before end of week."
+
+The whole process took four minutes. The analyst on her team exports the full week's data to CSV for the Monday competitive brief. Nobody had to visit a single social media page.
+
+---
+
+# Success Metrics
+
+## User Metrics
+
+* Weekly active users among the marketing and analytics team: target 5+ within 30 days
+* CSV export events per week: target 3+ (indicates active use in reporting)
+* Average session length: target 3–8 minutes (focused, task-oriented use)
+
+## Business Metrics
+
+* Reduction in manual competitor research hours: target 80% reduction vs baseline
+* Number of operators monitored: target 10 at launch, 20 within 90 days
+
+## Technical Metrics
+
+* LLM extraction accuracy (spot-checked): target 85%+ fields correctly populated on High-confidence records
+* Pipeline success rate: target 95%+ of daily runs complete without error
+* Dashboard load time: under 2 seconds for default view
+
+## Key Events to Track
+
+* `dashboard_loaded` — on each visit to the promotions table
+* `filter_applied` — filter type and value used
+* `row_expanded` — promotion detail view opened
+* `csv_exported` — export triggered, with filter state
+* `source_added` / `source_deactivated` — operator management actions
+* `run_log_viewed` — ops monitoring activity
+
+---
+
+# Technical Considerations
+
+The system has two distinct layers that should be built and deployed independently:
+
+1. Ingestion pipeline — runs on a schedule, writes to a managed database
+2. Frontend dashboard — reads from the managed database, handles auth and UI
+
+These layers communicate only through the managed database (no direct API between them). This keeps the frontend completely decoupled from the scraping logic.
+
+The LLM extraction prompt needs to handle the variety of ways promotions are written across operators and platforms. It should extract what it can and return nulls for fields it cannot confidently identify — not hallucinate values. Prompt versioning matters here; store the prompt version used alongside each extracted record so you can retrace extraction quality over time.
+
+Costs for third-party scraping and LLM usage depend on chosen vendors. Limit scraping to the latest 10–20 posts per account per run to control costs in v1.
+
+---
+
+## Data Model — promotions table
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid | Primary key |
+| operator | text | e.g. "LeoVegas" |
+| platform | text | "Instagram" or "Telegram" |
+| post_date | timestamp | When the post was published |
+| detected_at | timestamp | When the pipeline first ingested it |
+| promo_type | text | e.g. "Welcome Offer", "Free Bet", "Cashback", "Free Spins" |
+| offer_details | text | Full natural-language summary of the offer |
+| min_deposit | text | e.g. "£10" — nullable |
+| reward_value | text | e.g. "£50 in free bets" — nullable |
+| wagering_requirement | text | e.g. "30x" — nullable |
+| expiry_date | date | nullable |
+| target_audience | text | e.g. "New customers only" — nullable |
+| requires_deposit | boolean | True if deposit required; false = no-deposit promo |
+| source_url | text | Direct link to original post |
+| raw_post_text | text | Full original post content |
+| confidence_score | text | "High", "Medium", or "Low" |
+| prompt_version | text | Version tag of the LLM extraction prompt used |
+
+## Key API Endpoints
+
+* GET /api/promotions — fetch promotions with filter params (operator, platform, requires_deposit, date range, confidence)
+* GET /api/sources — fetch all operator sources
+* POST /api/sources — add a new operator source
+* PATCH /api/sources/:id — update or deactivate a source
+* GET /api/runs — fetch recent ingestion run logs
+
+---
+
+# Performance & Scalability
+
+* Optimizations: client caching for dashboard data; server-side filtering via database queries for large datasets
+* Accessibility: WCAG 2.1 AA — sufficient colour contrast on table rows, keyboard-navigable filters
+* Scalability: v1 expects low data volume (hundreds of records/day across 10 operators). The managed database free tier or entry plan is sufficient to start. Index promotions on post_date, operator, and requires_deposit for query performance.
+* Monitoring: database dashboard for DB health; hosting analytics for frontend; ingestion pipeline logs written to the runs table
+
+---
