@@ -6,6 +6,7 @@ import {
   date,
   uuid,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -32,6 +33,7 @@ export const promotionsTable = pgTable(
     promptVersion: text("prompt_version"),
   },
   (table) => [
+    uniqueIndex("promotions_source_url_unique_idx").on(table.sourceUrl),
     index("promotions_post_date_idx").on(table.postDate),
     index("promotions_operator_idx").on(table.operator),
     index("promotions_requires_deposit_idx").on(table.requiresDeposit),

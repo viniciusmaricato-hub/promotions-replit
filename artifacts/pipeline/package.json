@@ -1,0 +1,23 @@
+{
+  "name": "@workspace/pipeline",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx ./src/index.ts",
+    "run-now": "tsx ./src/index.ts --run-now",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@workspace/db": "workspace:*",
+    "@workspace/integrations-openai-ai-server": "workspace:*",
+    "drizzle-orm": "catalog:",
+    "node-cron": "^3.0.3",
+    "telegram": "^2.26.20"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/node-cron": "^3.0.11",
+    "tsx": "catalog:"
+  }
+}
