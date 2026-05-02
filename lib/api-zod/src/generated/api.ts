@@ -172,6 +172,58 @@ export const UpdateSourceResponse = zod.object({
 });
 
 /**
+ * @summary List all operators
+ */
+export const ListOperatorsResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  homepageUrl: zod.string().nullish(),
+  instagramHandle: zod.string().nullish(),
+  telegramHandle: zod.string().nullish(),
+  active: zod.boolean(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+export const ListOperatorsResponse = zod.array(ListOperatorsResponseItem);
+
+/**
+ * @summary Add a new operator
+ */
+
+export const CreateOperatorBody = zod.object({
+  name: zod.string().min(1),
+  homepageUrl: zod.string().nullish(),
+  instagramHandle: zod.string().nullish(),
+  telegramHandle: zod.string().nullish(),
+});
+
+/**
+ * @summary Update or deactivate an operator
+ */
+export const UpdateOperatorParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateOperatorBody = zod.object({
+  name: zod.string().min(1).optional(),
+  homepageUrl: zod.string().nullish(),
+  instagramHandle: zod.string().nullish(),
+  telegramHandle: zod.string().nullish(),
+  active: zod.boolean().optional(),
+});
+
+export const UpdateOperatorResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  homepageUrl: zod.string().nullish(),
+  instagramHandle: zod.string().nullish(),
+  telegramHandle: zod.string().nullish(),
+  active: zod.boolean(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+/**
  * @summary List recent ingestion runs
  */
 export const listRunsQueryLimitDefault = 50;

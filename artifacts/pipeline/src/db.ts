@@ -1,6 +1,6 @@
-import { db, promotionsTable, sourcesTable, runsTable } from "@workspace/db";
+import { db, promotionsTable, sourcesTable, operatorsTable, runsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
-import type { InsertPromotion, InsertRun, Source } from "@workspace/db";
+import type { InsertPromotion, InsertRun, Source, Operator } from "@workspace/db";
 
 export async function getActiveSources(platform?: string): Promise<Source[]> {
   if (platform) {
@@ -10,6 +10,14 @@ export async function getActiveSources(platform?: string): Promise<Source[]> {
       .where(and(eq(sourcesTable.active, true), eq(sourcesTable.platform, platform)));
   }
   return db.select().from(sourcesTable).where(eq(sourcesTable.active, true));
+}
+
+export async function getActiveOperators(): Promise<Operator[]> {
+  return db
+    .select()
+    .from(operatorsTable)
+    .where(eq(operatorsTable.active, true))
+    .orderBy(operatorsTable.name);
 }
 
 export async function isDuplicate(sourceUrl: string): Promise<boolean> {

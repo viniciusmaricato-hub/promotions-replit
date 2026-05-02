@@ -107,6 +107,43 @@ export interface UpdateSourceBody {
   active?: boolean;
 }
 
+export interface Operator {
+  id: number;
+  name: string;
+  /** @nullable */
+  homepageUrl?: string | null;
+  /** @nullable */
+  instagramHandle?: string | null;
+  /** @nullable */
+  telegramHandle?: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateOperatorBody {
+  /** @minLength 1 */
+  name: string;
+  /** @nullable */
+  homepageUrl?: string | null;
+  /** @nullable */
+  instagramHandle?: string | null;
+  /** @nullable */
+  telegramHandle?: string | null;
+}
+
+export interface UpdateOperatorBody {
+  /** @minLength 1 */
+  name?: string;
+  /** @nullable */
+  homepageUrl?: string | null;
+  /** @nullable */
+  instagramHandle?: string | null;
+  /** @nullable */
+  telegramHandle?: string | null;
+  active?: boolean;
+}
+
 export type RunLogStatus = (typeof RunLogStatus)[keyof typeof RunLogStatus];
 
 export const RunLogStatus = {

@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useClerk, UserButton } from "@clerk/react";
-import { LayoutDashboard, Activity, Database, LogOut } from "lucide-react";
+import { LayoutDashboard, Activity, Building2, LogOut } from "lucide-react";
 
 export function Layout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
@@ -9,7 +9,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
   const navItems = [
     { label: "Dashboard", href: "/", icon: LayoutDashboard },
-    { label: "Sources", href: "/sources", icon: Database },
+    { label: "Operators", href: "/operators", icon: Building2 },
     { label: "Run Logs", href: "/runs", icon: Activity },
   ];
 

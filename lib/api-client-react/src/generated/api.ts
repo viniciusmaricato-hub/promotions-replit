@@ -17,16 +17,19 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  CreateOperatorBody,
   CreateSourceBody,
   ErrorResponse,
   HealthStatus,
   ListPromotionsParams,
   ListPromotionsResponse,
   ListRunsParams,
+  Operator,
   Promotion,
   PromotionStats,
   RunLog,
   Source,
+  UpdateOperatorBody,
   UpdateSourceBody,
 } from "./api.schemas";
 
@@ -617,6 +620,254 @@ export const useUpdateSource = <
   TContext
 > => {
   return useMutation(getUpdateSourceMutationOptions(options));
+};
+
+/**
+ * @summary List all operators
+ */
+export const getListOperatorsUrl = () => {
+  return `/api/operators`;
+};
+
+export const listOperators = async (
+  options?: RequestInit,
+): Promise<Operator[]> => {
+  return customFetch<Operator[]>(getListOperatorsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListOperatorsQueryKey = () => {
+  return [`/api/operators`] as const;
+};
+
+export const getListOperatorsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listOperators>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listOperators>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListOperatorsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listOperators>>> = ({
+    signal,
+  }) => listOperators({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listOperators>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListOperatorsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listOperators>>
+>;
+export type ListOperatorsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary List all operators
+ */
+
+export function useListOperators<
+  TData = Awaited<ReturnType<typeof listOperators>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listOperators>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListOperatorsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Add a new operator
+ */
+export const getCreateOperatorUrl = () => {
+  return `/api/operators`;
+};
+
+export const createOperator = async (
+  createOperatorBody: CreateOperatorBody,
+  options?: RequestInit,
+): Promise<Operator> => {
+  return customFetch<Operator>(getCreateOperatorUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createOperatorBody),
+  });
+};
+
+export const getCreateOperatorMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createOperator>>,
+    TError,
+    { data: BodyType<CreateOperatorBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createOperator>>,
+  TError,
+  { data: BodyType<CreateOperatorBody> },
+  TContext
+> => {
+  const mutationKey = ["createOperator"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createOperator>>,
+    { data: BodyType<CreateOperatorBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createOperator(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateOperatorMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createOperator>>
+>;
+export type CreateOperatorMutationBody = BodyType<CreateOperatorBody>;
+export type CreateOperatorMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Add a new operator
+ */
+export const useCreateOperator = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createOperator>>,
+    TError,
+    { data: BodyType<CreateOperatorBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createOperator>>,
+  TError,
+  { data: BodyType<CreateOperatorBody> },
+  TContext
+> => {
+  return useMutation(getCreateOperatorMutationOptions(options));
+};
+
+/**
+ * @summary Update or deactivate an operator
+ */
+export const getUpdateOperatorUrl = (id: number) => {
+  return `/api/operators/${id}`;
+};
+
+export const updateOperator = async (
+  id: number,
+  updateOperatorBody: UpdateOperatorBody,
+  options?: RequestInit,
+): Promise<Operator> => {
+  return customFetch<Operator>(getUpdateOperatorUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateOperatorBody),
+  });
+};
+
+export const getUpdateOperatorMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateOperator>>,
+    TError,
+    { id: number; data: BodyType<UpdateOperatorBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateOperator>>,
+  TError,
+  { id: number; data: BodyType<UpdateOperatorBody> },
+  TContext
+> => {
+  const mutationKey = ["updateOperator"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateOperator>>,
+    { id: number; data: BodyType<UpdateOperatorBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateOperator(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateOperatorMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateOperator>>
+>;
+export type UpdateOperatorMutationBody = BodyType<UpdateOperatorBody>;
+export type UpdateOperatorMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Update or deactivate an operator
+ */
+export const useUpdateOperator = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateOperator>>,
+    TError,
+    { id: number; data: BodyType<UpdateOperatorBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateOperator>>,
+  TError,
+  { id: number; data: BodyType<UpdateOperatorBody> },
+  TContext
+> => {
+  return useMutation(getUpdateOperatorMutationOptions(options));
 };
 
 /**

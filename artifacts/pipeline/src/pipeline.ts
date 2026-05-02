@@ -1,8 +1,8 @@
-import type { Source } from "@workspace/db";
+import type { Operator } from "@workspace/db";
 import { fetchTelegramPosts } from "./telegram.js";
 import { fetchInstagramPosts } from "./instagram.js";
 import { extractPromotion, PROMPT_VERSION } from "./llm.js";
-import { isDuplicate, insertPromotion, logRun } from "./db.js";
+import { isDuplicate, insertPromotion, logRun, getActiveOperators } from "./db.js";
 
 export interface RunStats {
   source: string;
@@ -12,27 +12,28 @@ export interface RunStats {
   error: string | null;
 }
 
-async function fetchPosts(source: Source) {
-  if (source.platform === "Telegram") {
-    return fetchTelegramPosts(source.handle, 20);
-  } else if (source.platform === "Instagram") {
-    return fetchInstagramPosts(source.handle, 20);
+async function fetchPosts(platform: "Instagram" | "Telegram", handle: string) {
+  if (platform === "Telegram") {
+    return fetchTelegramPosts(handle, 20);
   }
-  console.warn(`[pipeline] Unknown platform "${source.platform}" for source ${source.name}`);
-  return [];
+  return fetchInstagramPosts(handle, 20);
 }
 
-export async function runForSource(source: Source): Promise<RunStats> {
-  console.log(`[pipeline] Processing source: ${source.name} (${source.platform} / ${source.handle})`);
+export async function runForOperatorPlatform(
+  operator: Operator,
+  platform: "Instagram" | "Telegram",
+  handle: string,
+): Promise<RunStats> {
+  console.log(`[pipeline] Processing ${operator.name} on ${platform} (${handle})`);
 
   let recordsFetched = 0;
   let recordsInserted = 0;
   let errorMsg: string | null = null;
 
   try {
-    const posts = await fetchPosts(source);
+    const posts = await fetchPosts(platform, handle);
     recordsFetched = posts.length;
-    console.log(`[pipeline] Fetched ${recordsFetched} posts from ${source.handle}`);
+    console.log(`[pipeline] Fetched ${recordsFetched} posts from ${handle}`);
 
     for (const post of posts) {
       try {
@@ -45,8 +46,8 @@ export async function runForSource(source: Source): Promise<RunStats> {
         const extraction = await extractPromotion(post.text);
 
         await insertPromotion({
-          operator: source.name,
-          platform: source.platform,
+          operator: operator.name,
+          platform,
           postDate: post.postedAt ?? undefined,
           promoType: extraction.promo_type,
           offerDetails: extraction.offer_details,
@@ -63,7 +64,9 @@ export async function runForSource(source: Source): Promise<RunStats> {
         });
 
         recordsInserted++;
-        console.log(`[pipeline] Inserted promotion from ${post.url} (confidence: ${extraction.confidence_score})`);
+        console.log(
+          `[pipeline] Inserted promotion from ${post.url} (confidence: ${extraction.confidence_score})`,
+        );
       } catch (postErr) {
         const msg = postErr instanceof Error ? postErr.message : String(postErr);
         const cause = postErr instanceof Error && postErr.cause
@@ -76,13 +79,13 @@ export async function runForSource(source: Source): Promise<RunStats> {
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[pipeline] Fatal error for source ${source.name}:`, msg);
+    console.error(`[pipeline] Fatal error for ${operator.name} on ${platform}:`, msg);
     errorMsg = msg;
   }
 
   await logRun({
-    source: source.name,
-    platform: source.platform,
+    source: operator.name,
+    platform,
     status: errorMsg && recordsInserted === 0 ? "error" : "success",
     recordsFetched,
     recordsInserted,
@@ -90,8 +93,8 @@ export async function runForSource(source: Source): Promise<RunStats> {
   });
 
   return {
-    source: source.name,
-    platform: source.platform,
+    source: operator.name,
+    platform,
     recordsFetched,
     recordsInserted,
     error: errorMsg,
@@ -105,24 +108,45 @@ function sleep(ms: number): Promise<void> {
 export async function runPipeline(): Promise<void> {
   console.log(`[pipeline] Starting pipeline run at ${new Date().toISOString()}`);
 
-  const { getActiveSources } = await import("./db.js");
-  const sources = await getActiveSources();
+  const operators = await getActiveOperators();
 
-  if (sources.length === 0) {
-    console.log("[pipeline] No active sources found. Add sources to the database to begin scraping.");
+  if (operators.length === 0) {
+    console.log(
+      "[pipeline] No active operators found. Add operators in the dashboard to begin scraping.",
+    );
     return;
   }
 
-  console.log(`[pipeline] Found ${sources.length} active source(s)`);
+  type Job = { operator: Operator; platform: "Instagram" | "Telegram"; handle: string };
+  const jobs: Job[] = [];
+  for (const op of operators) {
+    if (op.instagramHandle && op.instagramHandle.trim().length > 0) {
+      jobs.push({ operator: op, platform: "Instagram", handle: op.instagramHandle.trim() });
+    }
+    if (op.telegramHandle && op.telegramHandle.trim().length > 0) {
+      jobs.push({ operator: op, platform: "Telegram", handle: op.telegramHandle.trim() });
+    }
+  }
+
+  if (jobs.length === 0) {
+    console.log(
+      "[pipeline] No active operators have Instagram or Telegram handles configured.",
+    );
+    return;
+  }
+
+  console.log(
+    `[pipeline] Found ${operators.length} active operator(s) with ${jobs.length} platform job(s)`,
+  );
 
   const interSourceDelayMs = Number(process.env["PIPELINE_INTER_SOURCE_DELAY_MS"] ?? "3000");
 
   const results: RunStats[] = [];
-  for (let i = 0; i < sources.length; i++) {
-    const source = sources[i]!;
-    const stats = await runForSource(source);
+  for (let i = 0; i < jobs.length; i++) {
+    const job = jobs[i]!;
+    const stats = await runForOperatorPlatform(job.operator, job.platform, job.handle);
     results.push(stats);
-    if (i < sources.length - 1 && interSourceDelayMs > 0) {
+    if (i < jobs.length - 1 && interSourceDelayMs > 0) {
       await sleep(interSourceDelayMs);
     }
   }
@@ -132,11 +156,13 @@ export async function runPipeline(): Promise<void> {
   const errors = results.filter((r) => r.error !== null);
 
   console.log(`\n[pipeline] Run complete:`);
-  console.log(`  Sources processed: ${results.length}`);
+  console.log(`  Jobs processed: ${results.length}`);
   console.log(`  Total posts fetched: ${totalFetched}`);
   console.log(`  Total promotions inserted: ${totalInserted}`);
   if (errors.length > 0) {
-    console.log(`  Sources with errors: ${errors.map((r) => r.source).join(", ")}`);
+    console.log(
+      `  Jobs with errors: ${errors.map((r) => `${r.source}/${r.platform}`).join(", ")}`,
+    );
   }
   console.log(`[pipeline] Done at ${new Date().toISOString()}\n`);
 }

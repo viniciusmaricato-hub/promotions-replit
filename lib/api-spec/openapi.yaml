@@ -13,7 +13,9 @@ tags:
   - name: promotions
     description: Competitor promotions
   - name: sources
-    description: Operator sources management
+    description: Operator sources management (legacy)
+  - name: operators
+    description: Competitor operators with social handles
   - name: runs
     description: Ingestion run logs
 paths:
@@ -246,6 +248,99 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Source not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /operators:
+    get:
+      operationId: listOperators
+      tags: [operators]
+      summary: List all operators
+      responses:
+        "200":
+          description: List of operators
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Operator"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createOperator
+      tags: [operators]
+      summary: Add a new operator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOperatorBody"
+      responses:
+        "201":
+          description: Created operator
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Operator"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /operators/{id}:
+    patch:
+      operationId: updateOperator
+      tags: [operators]
+      summary: Update or deactivate an operator
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOperatorBody"
+      responses:
+        "200":
+          description: Updated operator
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Operator"
+        "400":
+          description: Validation error or no fields to update
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Operator not found
           content:
             application/json:
               schema:
@@ -484,6 +579,62 @@ components:
           type: string
         handle:
           type: string
+        active:
+          type: boolean
+
+    Operator:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        homepageUrl:
+          type: ["string", "null"]
+        instagramHandle:
+          type: ["string", "null"]
+        telegramHandle:
+          type: ["string", "null"]
+        active:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - name
+        - active
+        - createdAt
+        - updatedAt
+
+    CreateOperatorBody:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        homepageUrl:
+          type: ["string", "null"]
+        instagramHandle:
+          type: ["string", "null"]
+        telegramHandle:
+          type: ["string", "null"]
+      required:
+        - name
+
+    UpdateOperatorBody:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        homepageUrl:
+          type: ["string", "null"]
+        instagramHandle:
+          type: ["string", "null"]
+        telegramHandle:
+          type: ["string", "null"]
         active:
           type: boolean
 
