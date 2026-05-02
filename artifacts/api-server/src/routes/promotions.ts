@@ -23,7 +23,9 @@ router.get("/promotions", requireAuth, async (req, res): Promise<void> => {
           ? false
           : undefined,
     dateFrom: rawQuery.dateFrom ? new Date(rawQuery.dateFrom) : undefined,
-    dateTo: rawQuery.dateTo ? new Date(rawQuery.dateTo) : undefined,
+    dateTo: rawQuery.dateTo
+      ? (() => { const d = new Date(rawQuery.dateTo!); d.setUTCHours(23, 59, 59, 999); return d; })()
+      : undefined,
   };
   const parsed = ListPromotionsQueryParams.safeParse(queryCoerced);
   if (!parsed.success) {

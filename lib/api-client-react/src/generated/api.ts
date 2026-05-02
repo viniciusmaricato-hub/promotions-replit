@@ -151,7 +151,7 @@ export const getListPromotionsQueryKey = (params?: ListPromotionsParams) => {
 
 export const getListPromotionsQueryOptions = <
   TData = Awaited<ReturnType<typeof listPromotions>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   params?: ListPromotionsParams,
   options?: {
@@ -181,7 +181,7 @@ export const getListPromotionsQueryOptions = <
 export type ListPromotionsQueryResult = NonNullable<
   Awaited<ReturnType<typeof listPromotions>>
 >;
-export type ListPromotionsQueryError = ErrorType<unknown>;
+export type ListPromotionsQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary List promotions
@@ -189,7 +189,7 @@ export type ListPromotionsQueryError = ErrorType<unknown>;
 
 export function useListPromotions<
   TData = Awaited<ReturnType<typeof listPromotions>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   params?: ListPromotionsParams,
   options?: {
@@ -233,7 +233,7 @@ export const getGetPromotionsStatsQueryKey = () => {
 
 export const getGetPromotionsStatsQueryOptions = <
   TData = Awaited<ReturnType<typeof getPromotionsStats>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(options?: {
   query?: UseQueryOptions<
     Awaited<ReturnType<typeof getPromotionsStats>>,
@@ -260,7 +260,7 @@ export const getGetPromotionsStatsQueryOptions = <
 export type GetPromotionsStatsQueryResult = NonNullable<
   Awaited<ReturnType<typeof getPromotionsStats>>
 >;
-export type GetPromotionsStatsQueryError = ErrorType<unknown>;
+export type GetPromotionsStatsQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary Get promotion statistics
@@ -268,7 +268,7 @@ export type GetPromotionsStatsQueryError = ErrorType<unknown>;
 
 export function useGetPromotionsStats<
   TData = Awaited<ReturnType<typeof getPromotionsStats>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(options?: {
   query?: UseQueryOptions<
     Awaited<ReturnType<typeof getPromotionsStats>>,
@@ -393,7 +393,7 @@ export const getListSourcesQueryKey = () => {
 
 export const getListSourcesQueryOptions = <
   TData = Awaited<ReturnType<typeof listSources>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(options?: {
   query?: UseQueryOptions<
     Awaited<ReturnType<typeof listSources>>,
@@ -420,7 +420,7 @@ export const getListSourcesQueryOptions = <
 export type ListSourcesQueryResult = NonNullable<
   Awaited<ReturnType<typeof listSources>>
 >;
-export type ListSourcesQueryError = ErrorType<unknown>;
+export type ListSourcesQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary List all operator sources
@@ -428,7 +428,7 @@ export type ListSourcesQueryError = ErrorType<unknown>;
 
 export function useListSources<
   TData = Awaited<ReturnType<typeof listSources>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(options?: {
   query?: UseQueryOptions<
     Awaited<ReturnType<typeof listSources>>,
@@ -654,7 +654,7 @@ export const getListRunsQueryKey = (params?: ListRunsParams) => {
 
 export const getListRunsQueryOptions = <
   TData = Awaited<ReturnType<typeof listRuns>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   params?: ListRunsParams,
   options?: {
@@ -684,7 +684,7 @@ export const getListRunsQueryOptions = <
 export type ListRunsQueryResult = NonNullable<
   Awaited<ReturnType<typeof listRuns>>
 >;
-export type ListRunsQueryError = ErrorType<unknown>;
+export type ListRunsQueryError = ErrorType<ErrorResponse>;
 
 /**
  * @summary List recent ingestion runs
@@ -692,7 +692,7 @@ export type ListRunsQueryError = ErrorType<unknown>;
 
 export function useListRuns<
   TData = Awaited<ReturnType<typeof listRuns>>,
-  TError = ErrorType<unknown>,
+  TError = ErrorType<ErrorResponse>,
 >(
   params?: ListRunsParams,
   options?: {

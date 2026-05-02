@@ -94,6 +94,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ListPromotionsResponse"
+        "400":
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /promotions/stats:
     get:
@@ -108,6 +120,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PromotionStats"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /promotions/{id}:
     get:
@@ -127,8 +145,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Promotion"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
-          description: Not found
+          description: Promotion not found
           content:
             application/json:
               schema:
@@ -148,6 +172,12 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Source"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     post:
       operationId: createSource
       tags: [sources]
@@ -167,6 +197,12 @@ paths:
                 $ref: "#/components/schemas/Source"
         "400":
           description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
           content:
             application/json:
               schema:
@@ -196,8 +232,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Source"
+        "400":
+          description: Validation error or no fields to update
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
-          description: Not found
+          description: Source not found
           content:
             application/json:
               schema:
@@ -225,6 +273,18 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/RunLog"
+        "400":
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
 components:
   schemas:
