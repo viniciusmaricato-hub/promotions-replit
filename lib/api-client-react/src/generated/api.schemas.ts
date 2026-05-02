@@ -8,3 +8,166 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface ErrorResponse {
+  error: string;
+}
+
+export interface Promotion {
+  id: string;
+  operator: string;
+  platform: string;
+  /** @nullable */
+  postDate?: string | null;
+  detectedAt: string;
+  /** @nullable */
+  promoType?: string | null;
+  /** @nullable */
+  offerDetails?: string | null;
+  /** @nullable */
+  minDeposit?: string | null;
+  /** @nullable */
+  rewardValue?: string | null;
+  /** @nullable */
+  wageringRequirement?: string | null;
+  /** @nullable */
+  expiryDate?: string | null;
+  /** @nullable */
+  targetAudience?: string | null;
+  /** @nullable */
+  requiresDeposit?: boolean | null;
+  sourceUrl: string;
+  /** @nullable */
+  rawPostText?: string | null;
+  confidenceScore: string;
+  /** @nullable */
+  promptVersion?: string | null;
+}
+
+export interface ListPromotionsResponse {
+  promotions: Promotion[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface PlatformCount {
+  platform: string;
+  count: number;
+}
+
+export interface PromoTypeCount {
+  promoType: string;
+  count: number;
+}
+
+export interface OperatorCount {
+  operator: string;
+  count: number;
+}
+
+export interface PromotionStats {
+  totalPromotions: number;
+  noDepositCount: number;
+  highConfidenceCount: number;
+  operatorCount: number;
+  last24hCount: number;
+  byPlatform: PlatformCount[];
+  byPromoType: PromoTypeCount[];
+  byOperator: OperatorCount[];
+}
+
+export interface Source {
+  id: number;
+  name: string;
+  platform: string;
+  handle: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreateSourceBodyPlatform =
+  (typeof CreateSourceBodyPlatform)[keyof typeof CreateSourceBodyPlatform];
+
+export const CreateSourceBodyPlatform = {
+  Instagram: "Instagram",
+  Telegram: "Telegram",
+} as const;
+
+export interface CreateSourceBody {
+  name: string;
+  platform: CreateSourceBodyPlatform;
+  handle: string;
+}
+
+export interface UpdateSourceBody {
+  name?: string;
+  handle?: string;
+  active?: boolean;
+}
+
+export type RunLogStatus = (typeof RunLogStatus)[keyof typeof RunLogStatus];
+
+export const RunLogStatus = {
+  success: "success",
+  error: "error",
+  partial: "partial",
+} as const;
+
+export interface RunLog {
+  id: number;
+  runAt: string;
+  source: string;
+  platform: string;
+  status: RunLogStatus;
+  recordsFetched: number;
+  recordsInserted: number;
+  /** @nullable */
+  errorMessage?: string | null;
+}
+
+export type ListPromotionsParams = {
+  operator?: string;
+  platform?: ListPromotionsPlatform;
+  promoType?: string;
+  requiresDeposit?: boolean;
+  confidenceScore?: ListPromotionsConfidenceScore;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+  /**
+   * @minimum 1
+   */
+  page?: number;
+  /**
+   * @minimum 1
+   * @maximum 100
+   */
+  pageSize?: number;
+};
+
+export type ListPromotionsPlatform =
+  (typeof ListPromotionsPlatform)[keyof typeof ListPromotionsPlatform];
+
+export const ListPromotionsPlatform = {
+  Instagram: "Instagram",
+  Telegram: "Telegram",
+} as const;
+
+export type ListPromotionsConfidenceScore =
+  (typeof ListPromotionsConfidenceScore)[keyof typeof ListPromotionsConfidenceScore];
+
+export const ListPromotionsConfidenceScore = {
+  High: "High",
+  Medium: "Medium",
+  Low: "Low",
+} as const;
+
+export type ListRunsParams = {
+  /**
+   * @minimum 1
+   * @maximum 100
+   */
+  limit?: number;
+};

@@ -10,6 +10,12 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: promotions
+    description: Competitor promotions
+  - name: sources
+    description: Operator sources management
+  - name: runs
+    description: Ingestion run logs
 paths:
   /healthz:
     get:
@@ -24,6 +30,202 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /promotions:
+    get:
+      operationId: listPromotions
+      tags: [promotions]
+      summary: List promotions
+      description: Fetch promotions with optional filters
+      parameters:
+        - name: operator
+          in: query
+          schema:
+            type: string
+        - name: platform
+          in: query
+          schema:
+            type: string
+            enum: [Instagram, Telegram]
+        - name: promoType
+          in: query
+          schema:
+            type: string
+        - name: requiresDeposit
+          in: query
+          schema:
+            type: boolean
+        - name: confidenceScore
+          in: query
+          schema:
+            type: string
+            enum: [High, Medium, Low]
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: List of promotions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListPromotionsResponse"
+
+  /promotions/stats:
+    get:
+      operationId: getPromotionsStats
+      tags: [promotions]
+      summary: Get promotion statistics
+      description: Returns summary stats for the promotions dashboard
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromotionStats"
+
+  /promotions/{id}:
+    get:
+      operationId: getPromotion
+      tags: [promotions]
+      summary: Get a single promotion
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The promotion
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Promotion"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /sources:
+    get:
+      operationId: listSources
+      tags: [sources]
+      summary: List all operator sources
+      responses:
+        "200":
+          description: List of sources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Source"
+    post:
+      operationId: createSource
+      tags: [sources]
+      summary: Add a new operator source
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSourceBody"
+      responses:
+        "201":
+          description: Created source
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Source"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /sources/{id}:
+    patch:
+      operationId: updateSource
+      tags: [sources]
+      summary: Update or deactivate a source
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSourceBody"
+      responses:
+        "200":
+          description: Updated source
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Source"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /runs:
+    get:
+      operationId: listRuns
+      tags: [runs]
+      summary: List recent ingestion runs
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: List of run logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RunLog"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +236,222 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    Promotion:
+      type: object
+      properties:
+        id:
+          type: string
+        operator:
+          type: string
+        platform:
+          type: string
+        postDate:
+          type: ["string", "null"]
+        detectedAt:
+          type: string
+        promoType:
+          type: ["string", "null"]
+        offerDetails:
+          type: ["string", "null"]
+        minDeposit:
+          type: ["string", "null"]
+        rewardValue:
+          type: ["string", "null"]
+        wageringRequirement:
+          type: ["string", "null"]
+        expiryDate:
+          type: ["string", "null"]
+        targetAudience:
+          type: ["string", "null"]
+        requiresDeposit:
+          type: ["boolean", "null"]
+        sourceUrl:
+          type: string
+        rawPostText:
+          type: ["string", "null"]
+        confidenceScore:
+          type: string
+        promptVersion:
+          type: ["string", "null"]
+      required:
+        - id
+        - operator
+        - platform
+        - detectedAt
+        - sourceUrl
+        - confidenceScore
+
+    ListPromotionsResponse:
+      type: object
+      properties:
+        promotions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Promotion"
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+      required:
+        - promotions
+        - total
+        - page
+        - pageSize
+
+    PromotionStats:
+      type: object
+      properties:
+        totalPromotions:
+          type: integer
+        noDepositCount:
+          type: integer
+        highConfidenceCount:
+          type: integer
+        operatorCount:
+          type: integer
+        last24hCount:
+          type: integer
+        byPlatform:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlatformCount"
+        byPromoType:
+          type: array
+          items:
+            $ref: "#/components/schemas/PromoTypeCount"
+        byOperator:
+          type: array
+          items:
+            $ref: "#/components/schemas/OperatorCount"
+      required:
+        - totalPromotions
+        - noDepositCount
+        - highConfidenceCount
+        - operatorCount
+        - last24hCount
+        - byPlatform
+        - byPromoType
+        - byOperator
+
+    PlatformCount:
+      type: object
+      properties:
+        platform:
+          type: string
+        count:
+          type: integer
+      required:
+        - platform
+        - count
+
+    PromoTypeCount:
+      type: object
+      properties:
+        promoType:
+          type: string
+        count:
+          type: integer
+      required:
+        - promoType
+        - count
+
+    OperatorCount:
+      type: object
+      properties:
+        operator:
+          type: string
+        count:
+          type: integer
+      required:
+        - operator
+        - count
+
+    Source:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        platform:
+          type: string
+        handle:
+          type: string
+        active:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - name
+        - platform
+        - handle
+        - active
+        - createdAt
+        - updatedAt
+
+    CreateSourceBody:
+      type: object
+      properties:
+        name:
+          type: string
+        platform:
+          type: string
+          enum: [Instagram, Telegram]
+        handle:
+          type: string
+      required:
+        - name
+        - platform
+        - handle
+
+    UpdateSourceBody:
+      type: object
+      properties:
+        name:
+          type: string
+        handle:
+          type: string
+        active:
+          type: boolean
+
+    RunLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        runAt:
+          type: string
+        source:
+          type: string
+        platform:
+          type: string
+        status:
+          type: string
+          enum: [success, error, partial]
+        recordsFetched:
+          type: integer
+        recordsInserted:
+          type: integer
+        errorMessage:
+          type: ["string", "null"]
+      required:
+        - id
+        - runAt
+        - source
+        - platform
+        - status
+        - recordsFetched
+        - recordsInserted

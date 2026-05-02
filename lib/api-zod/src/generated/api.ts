@@ -14,3 +14,185 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Fetch promotions with optional filters
+ * @summary List promotions
+ */
+export const listPromotionsQueryPageDefault = 1;
+
+export const listPromotionsQueryPageSizeDefault = 50;
+export const listPromotionsQueryPageSizeMax = 100;
+
+export const ListPromotionsQueryParams = zod.object({
+  operator: zod.coerce.string().optional(),
+  platform: zod.enum(["Instagram", "Telegram"]).optional(),
+  promoType: zod.coerce.string().optional(),
+  requiresDeposit: zod.coerce.boolean().optional(),
+  confidenceScore: zod.enum(["High", "Medium", "Low"]).optional(),
+  dateFrom: zod.date().optional(),
+  dateTo: zod.date().optional(),
+  search: zod.coerce.string().optional(),
+  page: zod.coerce.number().min(1).default(listPromotionsQueryPageDefault),
+  pageSize: zod.coerce
+    .number()
+    .min(1)
+    .max(listPromotionsQueryPageSizeMax)
+    .default(listPromotionsQueryPageSizeDefault),
+});
+
+export const ListPromotionsResponse = zod.object({
+  promotions: zod.array(
+    zod.object({
+      id: zod.string(),
+      operator: zod.string(),
+      platform: zod.string(),
+      postDate: zod.string().nullish(),
+      detectedAt: zod.string(),
+      promoType: zod.string().nullish(),
+      offerDetails: zod.string().nullish(),
+      minDeposit: zod.string().nullish(),
+      rewardValue: zod.string().nullish(),
+      wageringRequirement: zod.string().nullish(),
+      expiryDate: zod.string().nullish(),
+      targetAudience: zod.string().nullish(),
+      requiresDeposit: zod.boolean().nullish(),
+      sourceUrl: zod.string(),
+      rawPostText: zod.string().nullish(),
+      confidenceScore: zod.string(),
+      promptVersion: zod.string().nullish(),
+    }),
+  ),
+  total: zod.number(),
+  page: zod.number(),
+  pageSize: zod.number(),
+});
+
+/**
+ * Returns summary stats for the promotions dashboard
+ * @summary Get promotion statistics
+ */
+export const GetPromotionsStatsResponse = zod.object({
+  totalPromotions: zod.number(),
+  noDepositCount: zod.number(),
+  highConfidenceCount: zod.number(),
+  operatorCount: zod.number(),
+  last24hCount: zod.number(),
+  byPlatform: zod.array(
+    zod.object({
+      platform: zod.string(),
+      count: zod.number(),
+    }),
+  ),
+  byPromoType: zod.array(
+    zod.object({
+      promoType: zod.string(),
+      count: zod.number(),
+    }),
+  ),
+  byOperator: zod.array(
+    zod.object({
+      operator: zod.string(),
+      count: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary Get a single promotion
+ */
+export const GetPromotionParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetPromotionResponse = zod.object({
+  id: zod.string(),
+  operator: zod.string(),
+  platform: zod.string(),
+  postDate: zod.string().nullish(),
+  detectedAt: zod.string(),
+  promoType: zod.string().nullish(),
+  offerDetails: zod.string().nullish(),
+  minDeposit: zod.string().nullish(),
+  rewardValue: zod.string().nullish(),
+  wageringRequirement: zod.string().nullish(),
+  expiryDate: zod.string().nullish(),
+  targetAudience: zod.string().nullish(),
+  requiresDeposit: zod.boolean().nullish(),
+  sourceUrl: zod.string(),
+  rawPostText: zod.string().nullish(),
+  confidenceScore: zod.string(),
+  promptVersion: zod.string().nullish(),
+});
+
+/**
+ * @summary List all operator sources
+ */
+export const ListSourcesResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  platform: zod.string(),
+  handle: zod.string(),
+  active: zod.boolean(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+export const ListSourcesResponse = zod.array(ListSourcesResponseItem);
+
+/**
+ * @summary Add a new operator source
+ */
+export const CreateSourceBody = zod.object({
+  name: zod.string(),
+  platform: zod.enum(["Instagram", "Telegram"]),
+  handle: zod.string(),
+});
+
+/**
+ * @summary Update or deactivate a source
+ */
+export const UpdateSourceParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateSourceBody = zod.object({
+  name: zod.string().optional(),
+  handle: zod.string().optional(),
+  active: zod.boolean().optional(),
+});
+
+export const UpdateSourceResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  platform: zod.string(),
+  handle: zod.string(),
+  active: zod.boolean(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+/**
+ * @summary List recent ingestion runs
+ */
+export const listRunsQueryLimitDefault = 50;
+export const listRunsQueryLimitMax = 100;
+
+export const ListRunsQueryParams = zod.object({
+  limit: zod.coerce
+    .number()
+    .min(1)
+    .max(listRunsQueryLimitMax)
+    .default(listRunsQueryLimitDefault),
+});
+
+export const ListRunsResponseItem = zod.object({
+  id: zod.number(),
+  runAt: zod.string(),
+  source: zod.string(),
+  platform: zod.string(),
+  status: zod.enum(["success", "error", "partial"]),
+  recordsFetched: zod.number(),
+  recordsInserted: zod.number(),
+  errorMessage: zod.string().nullish(),
+});
+export const ListRunsResponse = zod.array(ListRunsResponseItem);
