@@ -8,9 +8,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 
-import Home from "@/pages/home";
 import Dashboard from "@/pages/dashboard";
-import Promotions from "@/pages/promotions";
 import Sources from "@/pages/sources";
 import Runs from "@/pages/runs";
 import { Layout } from "@/components/layout";
@@ -108,19 +106,6 @@ function ClerkQueryClientCacheInvalidator() {
   return null;
 }
 
-function HomeRedirect() {
-  return (
-    <>
-      <Show when="signed-in">
-        <Redirect to="/dashboard" />
-      </Show>
-      <Show when="signed-out">
-        <Home />
-      </Show>
-    </>
-  );
-}
-
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   return (
     <>
@@ -152,14 +137,10 @@ function ClerkProviderWithRoutes() {
       <QueryClientProvider client={queryClient}>
         <ClerkQueryClientCacheInvalidator />
         <Switch>
-          <Route path="/" component={HomeRedirect} />
           <Route path="/sign-in/*?" component={SignInPage} />
           <Route path="/sign-up/*?" component={SignUpPage} />
-          <Route path="/dashboard">
+          <Route path="/">
             <ProtectedRoute component={Dashboard} />
-          </Route>
-          <Route path="/promotions">
-            <ProtectedRoute component={Promotions} />
           </Route>
           <Route path="/sources">
             <ProtectedRoute component={Sources} />

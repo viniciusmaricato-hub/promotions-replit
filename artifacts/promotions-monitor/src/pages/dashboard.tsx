@@ -5,15 +5,37 @@ import {
   useGetPromotion,
   getGetPromotionQueryKey,
 } from "@workspace/api-client-react";
+import { format, subDays } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { Tag, TrendingUp, AlertTriangle, Building2 } from "lucide-react";
-import { ExternalLink } from "lucide-react";
-import { format } from "date-fns";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import { Tag, TrendingUp, AlertTriangle, Building2, Search, Download, RefreshCcw, ExternalLink } from "lucide-react";
 
 function ActivityIcon(props: SVGProps<SVGSVGElement>) {
   return (
@@ -35,15 +57,44 @@ function ActivityIcon(props: SVGProps<SVGSVGElement>) {
 }
 
 function renderConfidenceBadge(score: string) {
-  if (score === "High") return <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-200 hover:bg-emerald-500/20">High</Badge>;
-  if (score === "Medium") return <Badge className="bg-amber-500/10 text-amber-600 border-amber-200 hover:bg-amber-500/20">Medium</Badge>;
+  if (score === "High")
+    return <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-200 hover:bg-emerald-500/20">High</Badge>;
+  if (score === "Medium")
+    return <Badge className="bg-amber-500/10 text-amber-600 border-amber-200 hover:bg-amber-500/20">Medium</Badge>;
   return <Badge className="bg-red-500/10 text-red-600 border-red-200 hover:bg-red-500/20">Low</Badge>;
 }
 
+const DEFAULT_DATE_FROM = format(subDays(new Date(), 7), "yyyy-MM-dd");
+
+type Platform = "Instagram" | "Telegram" | "";
+type Confidence = "High" | "Medium" | "Low" | "";
+
 export default function Dashboard() {
   const { data: stats, isLoading: statsLoading } = useGetPromotionsStats();
-  const { data: promotionsData, isLoading: promotionsLoading } = useListPromotions({ page: 1, pageSize: 50 });
+
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [operator, setOperator] = useState("");
+  const [promoType, setPromoType] = useState("");
+  const [platform, setPlatform] = useState<Platform>("");
+  const [confidence, setConfidence] = useState<Confidence>("");
+  const [requiresDeposit, setRequiresDeposit] = useState<boolean | undefined>(undefined);
+  const [dateFrom, setDateFrom] = useState(DEFAULT_DATE_FROM);
+  const [dateTo, setDateTo] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const { data: promotionsData, isLoading: promotionsLoading } = useListPromotions({
+    page,
+    pageSize: 50,
+    search: search || undefined,
+    operator: operator || undefined,
+    promoType: promoType || undefined,
+    platform: (platform || undefined) as "Instagram" | "Telegram" | undefined,
+    confidenceScore: (confidence || undefined) as "High" | "Medium" | "Low" | undefined,
+    requiresDeposit,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
+  });
 
   const { data: detailData, isLoading: detailLoading } = useGetPromotion(selectedId ?? "", {
     query: {
@@ -52,15 +103,64 @@ export default function Dashboard() {
     },
   });
 
+  const resetFilters = () => {
+    setSearch("");
+    setOperator("");
+    setPromoType("");
+    setPlatform("");
+    setConfidence("");
+    setRequiresDeposit(undefined);
+    setDateFrom(DEFAULT_DATE_FROM);
+    setDateTo("");
+    setPage(1);
+  };
+
+  const handleExport = () => {
+    if (!promotionsData?.promotions) return;
+    const headers = ["ID", "Operator", "Platform", "Type", "Offer Details", "Reward", "Min Deposit", "Requires Deposit", "Confidence", "Post Date", "Detected At"];
+    const csvRows = promotionsData.promotions.map((p) => [
+      p.id,
+      p.operator,
+      p.platform,
+      p.promoType ?? "",
+      p.offerDetails ?? "",
+      p.rewardValue ?? "",
+      p.minDeposit ?? "",
+      p.requiresDeposit === null ? "" : p.requiresDeposit ? "Yes" : "No",
+      p.confidenceScore,
+      p.postDate ? format(new Date(p.postDate), "yyyy-MM-dd HH:mm") : "",
+      format(new Date(p.detectedAt), "yyyy-MM-dd HH:mm"),
+    ]);
+    const csvContent = [headers, ...csvRows]
+      .map((e) => e.map((item) => `"${String(item).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `promotions_${format(new Date(), "yyyyMMdd_HHmm")}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">Overview of competitor promotional activity.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Promotions Dashboard</h1>
+          <p className="text-muted-foreground">
+            Competitor promotional intelligence across Instagram and Telegram.
+          </p>
+        </div>
+        <Button variant="outline" onClick={handleExport} className="gap-2">
+          <Download className="h-4 w-4" />
+          Export CSV
+        </Button>
       </div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {statsLoading ? (
           Array.from({ length: 5 }).map((_, i) => (
             <Card key={i}>
@@ -68,7 +168,9 @@ export default function Dashboard() {
                 <Skeleton className="h-4 w-20" />
                 <Skeleton className="h-4 w-4" />
               </CardHeader>
-              <CardContent><Skeleton className="h-8 w-16 mb-1" /></CardContent>
+              <CardContent>
+                <Skeleton className="h-8 w-16" />
+              </CardContent>
             </Card>
           ))
         ) : stats ? (
@@ -122,124 +224,199 @@ export default function Dashboard() {
         ) : null}
       </div>
 
-      {/* Summary breakdown */}
-      {stats && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Top Operators</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {stats.byOperator.slice(0, 5).map((op) => (
-                  <div key={op.operator} className="flex items-center justify-between">
-                    <div className="font-medium text-sm">{op.operator}</div>
-                    <Badge variant="secondary">{op.count}</Badge>
-                  </div>
-                ))}
+      {/* Promotions filter table */}
+      <Card>
+        <CardContent className="p-4 border-b border-border bg-muted/40">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search offer details, operator..."
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                  className="pl-9"
+                />
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>By Platform</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {stats.byPlatform.map((plat) => (
-                  <div key={plat.platform} className="flex items-center justify-between">
-                    <div className="font-medium text-sm">{plat.platform}</div>
-                    <Badge variant="outline">{plat.count}</Badge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+              <Input
+                placeholder="Operator..."
+                value={operator}
+                onChange={(e) => { setOperator(e.target.value); setPage(1); }}
+                className="sm:w-40"
+              />
+              <Input
+                placeholder="Promo type..."
+                value={promoType}
+                onChange={(e) => { setPromoType(e.target.value); setPage(1); }}
+                className="sm:w-40"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Select value={platform || "all"} onValueChange={(v) => { setPlatform(v === "all" ? "" : v as Platform); setPage(1); }}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Platform" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Platforms</SelectItem>
+                  <SelectItem value="Instagram">Instagram</SelectItem>
+                  <SelectItem value="Telegram">Telegram</SelectItem>
+                </SelectContent>
+              </Select>
 
-      {/* Full promotions table */}
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Recent Promotions</h2>
-        <Card>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
+              <Select value={confidence || "all"} onValueChange={(v) => { setConfidence(v === "all" ? "" : v as Confidence); setPage(1); }}>
+                <SelectTrigger className="w-[155px]">
+                  <SelectValue placeholder="Confidence" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Confidence</SelectItem>
+                  <SelectItem value="High">High</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="Low">Low</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="no-deposit-toggle"
+                  checked={requiresDeposit === false}
+                  onCheckedChange={(checked) => {
+                    setRequiresDeposit(checked ? false : undefined);
+                    setPage(1);
+                  }}
+                />
+                <Label htmlFor="no-deposit-toggle" className="text-sm cursor-pointer whitespace-nowrap">
+                  No-deposit only
+                </Label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground whitespace-nowrap">From</Label>
+                <Input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+                  className="w-[145px] text-sm"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground whitespace-nowrap">To</Label>
+                <Input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+                  className="w-[145px] text-sm"
+                />
+              </div>
+
+              <Button variant="ghost" size="icon" onClick={resetFilters} title="Reset all filters">
+                <RefreshCcw className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Operator</TableHead>
+                <TableHead>Platform</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Details</TableHead>
+                <TableHead>Reward</TableHead>
+                <TableHead>Deposit</TableHead>
+                <TableHead>Confidence</TableHead>
+                <TableHead>Post Date</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {promotionsLoading ? (
+                Array.from({ length: 10 }).map((_, i) => (
+                  <TableRow key={i}>
+                    {Array.from({ length: 8 }).map((__, j) => (
+                      <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : promotionsData?.promotions.length === 0 ? (
                 <TableRow>
-                  <TableHead>Operator</TableHead>
-                  <TableHead>Platform</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Details</TableHead>
-                  <TableHead>Reward</TableHead>
-                  <TableHead>Deposit</TableHead>
-                  <TableHead>Confidence</TableHead>
-                  <TableHead>Post Date</TableHead>
+                  <TableCell colSpan={8} className="h-48 text-center text-muted-foreground">
+                    No promotions match your current filters.
+                    <div className="mt-4">
+                      <Button variant="outline" onClick={resetFilters}>Reset Filters</Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {promotionsLoading ? (
-                  Array.from({ length: 8 }).map((_, i) => (
-                    <TableRow key={i}>
-                      {Array.from({ length: 8 }).map((__, j) => (
-                        <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : promotionsData?.promotions.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
-                      No promotions yet. The data ingestion pipeline will populate this table.
+              ) : (
+                promotionsData?.promotions.map((promo) => (
+                  <TableRow
+                    key={promo.id}
+                    className={`cursor-pointer transition-colors hover:bg-muted/50 ${promo.requiresDeposit === false ? "bg-orange-50/50 dark:bg-orange-950/20" : ""}`}
+                    onClick={() => setSelectedId(promo.id)}
+                  >
+                    <TableCell className="font-medium">{promo.operator}</TableCell>
+                    <TableCell>{promo.platform}</TableCell>
+                    <TableCell>
+                      {promo.promoType ? (
+                        <Badge variant="outline" className="font-normal">{promo.promoType}</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="max-w-[220px] truncate" title={promo.offerDetails ?? ""}>
+                      {promo.offerDetails ?? <span className="text-muted-foreground">-</span>}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {promo.rewardValue ?? <span className="text-muted-foreground">-</span>}
+                    </TableCell>
+                    <TableCell>
+                      {promo.requiresDeposit === false ? (
+                        <Badge className="bg-orange-100 text-orange-700 border-orange-200 whitespace-nowrap">No Deposit</Badge>
+                      ) : promo.requiresDeposit === true ? (
+                        <span className="text-xs text-muted-foreground">Required</span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>{renderConfidenceBadge(promo.confidenceScore)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                      {promo.postDate ? format(new Date(promo.postDate), "MMM d, HH:mm") : "-"}
                     </TableCell>
                   </TableRow>
-                ) : (
-                  promotionsData?.promotions.map((promo) => (
-                    <TableRow
-                      key={promo.id}
-                      className={`cursor-pointer transition-colors hover:bg-muted/50 ${promo.requiresDeposit === false ? "bg-orange-50/50 dark:bg-orange-950/20" : ""}`}
-                      onClick={() => setSelectedId(promo.id)}
-                    >
-                      <TableCell className="font-medium">{promo.operator}</TableCell>
-                      <TableCell>{promo.platform}</TableCell>
-                      <TableCell>
-                        {promo.promoType ? (
-                          <Badge variant="outline" className="font-normal">{promo.promoType}</Badge>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="max-w-[200px] truncate" title={promo.offerDetails ?? ""}>
-                        {promo.offerDetails ?? <span className="text-muted-foreground">-</span>}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">{promo.rewardValue ?? <span className="text-muted-foreground">-</span>}</TableCell>
-                      <TableCell>
-                        {promo.requiresDeposit === false ? (
-                          <Badge className="bg-orange-100 text-orange-700 border-orange-200 whitespace-nowrap">No Deposit</Badge>
-                        ) : promo.requiresDeposit === true ? (
-                          <span className="text-xs text-muted-foreground">Required</span>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>{renderConfidenceBadge(promo.confidenceScore)}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                        {promo.postDate ? format(new Date(promo.postDate), "MMM d, HH:mm") : "-"}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-          {promotionsData && promotionsData.total > promotionsData.pageSize && (
-            <div className="p-4 border-t border-border text-sm text-muted-foreground text-center">
-              Showing first {promotionsData.pageSize} of {promotionsData.total} promotions.{" "}
-              <a href="/promotions" className="text-primary hover:underline">View all with filters</a>
-            </div>
-          )}
-        </Card>
-      </div>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
 
-      {/* Detail drawer */}
+        {promotionsData && promotionsData.total > 0 && (
+          <div className="p-4 border-t border-border flex items-center justify-between text-sm text-muted-foreground">
+            <div>
+              Showing {(page - 1) * promotionsData.pageSize + 1}–{Math.min(page * promotionsData.pageSize, promotionsData.total)} of {promotionsData.total}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page * promotionsData.pageSize >= promotionsData.total}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* Promotion detail drawer */}
       <Sheet open={!!selectedId} onOpenChange={(open) => !open && setSelectedId(null)}>
         <SheetContent className="w-[420px] sm:w-[560px] overflow-y-auto">
           <SheetHeader className="mb-6">
@@ -260,6 +437,7 @@ export default function Dashboard() {
               ID: <span className="font-mono text-xs">{selectedId}</span>
             </SheetDescription>
           </SheetHeader>
+
           {detailLoading ? (
             <div className="space-y-4">
               <Skeleton className="h-8 w-full" />
@@ -283,10 +461,11 @@ export default function Dashboard() {
                   </div>
                 ))}
               </div>
+
               <div className="border-t border-border pt-4 grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <div className="text-xs text-muted-foreground uppercase font-semibold tracking-wide">Reward Value</div>
-                  <div className="font-medium text-emerald-600">{detailData.rewardValue ?? "-"}</div>
+                  <div className="font-medium text-emerald-600 dark:text-emerald-400">{detailData.rewardValue ?? "-"}</div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-xs text-muted-foreground uppercase font-semibold tracking-wide">Min Deposit</div>
@@ -304,16 +483,25 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
+
               <div className="space-y-2 border-t border-border pt-4">
                 <div className="text-xs text-muted-foreground uppercase font-semibold tracking-wide">Offer Details</div>
                 <p className="text-sm bg-muted/50 p-3 rounded-md">{detailData.offerDetails ?? "-"}</p>
               </div>
+
               <div className="space-y-2 border-t border-border pt-4">
                 <div className="text-xs text-muted-foreground uppercase font-semibold tracking-wide">Raw Post Text</div>
                 <div className="text-sm whitespace-pre-wrap bg-muted p-3 rounded-md font-mono overflow-x-auto max-h-64 overflow-y-auto">
                   {detailData.rawPostText ?? "-"}
                 </div>
               </div>
+
+              {detailData.promptVersion && (
+                <div className="text-xs text-muted-foreground pt-2 border-t border-border">
+                  Parsed with prompt version:{" "}
+                  <span className="font-mono">{detailData.promptVersion}</span>
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-muted-foreground text-sm">Failed to load promotion details.</div>
