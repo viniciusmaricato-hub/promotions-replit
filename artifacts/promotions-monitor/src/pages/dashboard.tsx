@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -36,6 +35,8 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { Tag, TrendingUp, AlertTriangle, Building2, Search, Download, RefreshCcw, ExternalLink } from "lucide-react";
+
+type DepositFilter = "all" | "no-deposit" | "requires-deposit";
 
 function ActivityIcon(props: SVGProps<SVGSVGElement>) {
   return (
@@ -78,7 +79,7 @@ export default function Dashboard() {
   const [promoType, setPromoType] = useState("");
   const [platform, setPlatform] = useState<Platform>("");
   const [confidence, setConfidence] = useState<Confidence>("");
-  const [requiresDeposit, setRequiresDeposit] = useState<boolean | undefined>(undefined);
+  const [depositFilter, setDepositFilter] = useState<DepositFilter>("all");
   const [dateFrom, setDateFrom] = useState(DEFAULT_DATE_FROM);
   const [dateTo, setDateTo] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -91,7 +92,10 @@ export default function Dashboard() {
     promoType: promoType || undefined,
     platform: (platform || undefined) as "Instagram" | "Telegram" | undefined,
     confidenceScore: (confidence || undefined) as "High" | "Medium" | "Low" | undefined,
-    requiresDeposit,
+    requiresDeposit:
+      depositFilter === "no-deposit" ? false
+      : depositFilter === "requires-deposit" ? true
+      : undefined,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
   });
@@ -109,7 +113,7 @@ export default function Dashboard() {
     setPromoType("");
     setPlatform("");
     setConfidence("");
-    setRequiresDeposit(undefined);
+    setDepositFilter("all");
     setDateFrom(DEFAULT_DATE_FROM);
     setDateTo("");
     setPage(1);
@@ -275,19 +279,16 @@ export default function Dashboard() {
                 </SelectContent>
               </Select>
 
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="no-deposit-toggle"
-                  checked={requiresDeposit === false}
-                  onCheckedChange={(checked) => {
-                    setRequiresDeposit(checked ? false : undefined);
-                    setPage(1);
-                  }}
-                />
-                <Label htmlFor="no-deposit-toggle" className="text-sm cursor-pointer whitespace-nowrap">
-                  No-deposit only
-                </Label>
-              </div>
+              <Select value={depositFilter} onValueChange={(v) => { setDepositFilter(v as DepositFilter); setPage(1); }}>
+                <SelectTrigger className="w-[185px]">
+                  <SelectValue placeholder="Deposit" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Deposit Types</SelectItem>
+                  <SelectItem value="no-deposit">No Deposit Only</SelectItem>
+                  <SelectItem value="requires-deposit">Requires Deposit</SelectItem>
+                </SelectContent>
+              </Select>
 
               <div className="flex items-center gap-2">
                 <Label className="text-xs text-muted-foreground whitespace-nowrap">From</Label>

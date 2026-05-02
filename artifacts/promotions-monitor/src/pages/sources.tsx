@@ -42,13 +42,19 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Pencil, Plus } from "lucide-react";
 
-const sourceSchema = z.object({
+const createSourceSchema = z.object({
   name: z.string().min(1, "Name is required"),
   platform: z.enum(["Instagram", "Telegram"]),
   handle: z.string().min(1, "Handle is required"),
 });
 
-type SourceFormData = z.infer<typeof sourceSchema>;
+const editSourceSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  handle: z.string().min(1, "Handle is required"),
+});
+
+type CreateSourceFormData = z.infer<typeof createSourceSchema>;
+type EditSourceFormData = z.infer<typeof editSourceSchema>;
 
 type SourceRow = {
   id: number;
@@ -60,20 +66,18 @@ type SourceRow = {
   updatedAt: string;
 };
 
-function SourceForm({
-  defaultValues,
+function CreateSourceForm({
   onSubmit,
   isPending,
   onCancel,
 }: {
-  defaultValues: SourceFormData;
-  onSubmit: (data: SourceFormData) => void;
+  onSubmit: (data: CreateSourceFormData) => void;
   isPending: boolean;
   onCancel: () => void;
 }) {
-  const form = useForm<SourceFormData>({
-    resolver: zodResolver(sourceSchema),
-    defaultValues,
+  const form = useForm<CreateSourceFormData>({
+    resolver: zodResolver(createSourceSchema),
+    defaultValues: { name: "", platform: "Instagram", handle: "" },
   });
 
   return (
@@ -131,7 +135,65 @@ function SourceForm({
             Cancel
           </Button>
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Saving..." : "Save"}
+            {isPending ? "Saving..." : "Add Source"}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
+
+function EditSourceForm({
+  defaultValues,
+  onSubmit,
+  isPending,
+  onCancel,
+}: {
+  defaultValues: EditSourceFormData;
+  onSubmit: (data: EditSourceFormData) => void;
+  isPending: boolean;
+  onCancel: () => void;
+}) {
+  const form = useForm<EditSourceFormData>({
+    resolver: zodResolver(editSourceSchema),
+    defaultValues,
+  });
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Operator Name</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g. BetMGM" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="handle"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Account Handle / URL</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g. @betmgm or t.me/betmgm" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <div className="flex justify-end gap-3 pt-4">
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? "Saving..." : "Save Changes"}
           </Button>
         </div>
       </form>
@@ -148,7 +210,7 @@ export default function Sources() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingSource, setEditingSource] = useState<SourceRow | null>(null);
 
-  const handleCreate = (data: SourceFormData) => {
+  const handleCreate = (data: CreateSourceFormData) => {
     createSource.mutate(
       { data },
       {
@@ -164,7 +226,7 @@ export default function Sources() {
     );
   };
 
-  const handleEdit = (data: SourceFormData) => {
+  const handleEdit = (data: EditSourceFormData) => {
     if (!editingSource) return;
     updateSource.mutate(
       { id: editingSource.id, data },
@@ -216,8 +278,7 @@ export default function Sources() {
             <DialogHeader>
               <DialogTitle>Add New Source</DialogTitle>
             </DialogHeader>
-            <SourceForm
-              defaultValues={{ name: "", platform: "Instagram", handle: "" }}
+            <CreateSourceForm
               onSubmit={handleCreate}
               isPending={createSource.isPending}
               onCancel={() => setIsAddOpen(false)}
@@ -226,17 +287,15 @@ export default function Sources() {
         </Dialog>
       </div>
 
-      {/* Edit dialog */}
       <Dialog open={!!editingSource} onOpenChange={(open) => !open && setEditingSource(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Source</DialogTitle>
           </DialogHeader>
           {editingSource && (
-            <SourceForm
+            <EditSourceForm
               defaultValues={{
                 name: editingSource.name,
-                platform: editingSource.platform as "Instagram" | "Telegram",
                 handle: editingSource.handle,
               }}
               onSubmit={handleEdit}
@@ -273,10 +332,7 @@ export default function Sources() {
                 ))
               ) : sources?.length === 0 ? (
                 <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="h-32 text-center text-muted-foreground"
-                  >
+                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
                     No sources configured. Add one to start tracking.
                   </TableCell>
                 </TableRow>
@@ -320,9 +376,7 @@ export default function Sources() {
                           </span>
                           <Switch
                             checked={source.active}
-                            onCheckedChange={() =>
-                              handleToggleActive(source.id, source.active)
-                            }
+                            onCheckedChange={() => handleToggleActive(source.id, source.active)}
                             disabled={
                               updateSource.isPending &&
                               updateSource.variables?.id === source.id
