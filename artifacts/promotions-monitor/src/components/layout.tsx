@@ -45,7 +45,7 @@ export function Layout({ children }: { children: ReactNode }) {
           })}
         </nav>
         <div className="p-4 border-t border-border flex items-center justify-between">
-           <UserButton afterSignOutUrl="/" />
+           <UserButton />
            <button 
              onClick={() => signOut()}
              className="text-muted-foreground hover:text-foreground p-2 rounded-md hover:bg-secondary"

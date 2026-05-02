@@ -1,5 +1,4 @@
 import { Router, type IRouter } from "express";
-import { getAuth } from "@clerk/express";
 import { eq } from "drizzle-orm";
 import { db, sourcesTable } from "@workspace/db";
 import {
@@ -9,18 +8,9 @@ import {
   ListSourcesResponse,
   UpdateSourceResponse,
 } from "@workspace/api-zod";
+import { requireAuth } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
-
-function requireAuth(req: any, res: any, next: any) {
-  const auth = getAuth(req);
-  const userId = auth?.sessionClaims?.userId || auth?.userId;
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  next();
-}
 
 router.get("/sources", requireAuth, async (_req, res): Promise<void> => {
   const sources = await db

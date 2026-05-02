@@ -1,61 +1,79 @@
 import { useState } from "react";
 import { useListPromotions, useGetPromotion, getGetPromotionQueryKey } from "@workspace/api-client-react";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { Search, Download, RefreshCcw, ExternalLink } from "lucide-react";
+
+const DEFAULT_DATE_FROM = format(subDays(new Date(), 7), "yyyy-MM-dd");
+
+type Platform = "Instagram" | "Telegram" | "";
+type Confidence = "High" | "Medium" | "Low" | "";
 
 export default function Promotions() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [platform, setPlatform] = useState<any>(undefined);
-  const [confidence, setConfidence] = useState<any>(undefined);
+  const [operator, setOperator] = useState("");
+  const [promoType, setPromoType] = useState("");
+  const [platform, setPlatform] = useState<Platform>("");
+  const [confidence, setConfidence] = useState<Confidence>("");
+  const [requiresDeposit, setRequiresDeposit] = useState<boolean | undefined>(undefined);
+  const [dateFrom, setDateFrom] = useState(DEFAULT_DATE_FROM);
+  const [dateTo, setDateTo] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const { data, isLoading } = useListPromotions({
     page,
     pageSize: 50,
     search: search || undefined,
-    platform: platform && platform !== "all" ? platform : undefined,
-    confidenceScore: confidence && confidence !== "all" ? confidence : undefined,
+    operator: operator || undefined,
+    promoType: promoType || undefined,
+    platform: (platform || undefined) as "Instagram" | "Telegram" | undefined,
+    confidenceScore: (confidence || undefined) as "High" | "Medium" | "Low" | undefined,
+    requiresDeposit,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
   });
 
-  const { data: detailData, isLoading: detailLoading } = useGetPromotion(selectedId || "", {
+  const { data: detailData, isLoading: detailLoading } = useGetPromotion(selectedId ?? "", {
     query: {
       enabled: !!selectedId,
-      queryKey: getGetPromotionQueryKey(selectedId || ""),
+      queryKey: getGetPromotionQueryKey(selectedId ?? ""),
     },
   });
 
   const handleExport = () => {
     if (!data?.promotions) return;
-    const headers = ["ID", "Operator", "Platform", "Type", "Reward", "Requires Deposit", "Confidence", "Detected At"];
-    const csvRows = data.promotions.map(p => [
+    const headers = ["ID", "Operator", "Platform", "Type", "Offer Details", "Reward", "Min Deposit", "Requires Deposit", "Confidence", "Post Date", "Detected At"];
+    const csvRows = data.promotions.map((p) => [
       p.id,
       p.operator,
       p.platform,
-      p.promoType || "",
-      p.rewardValue || "",
-      p.requiresDeposit ? "Yes" : "No",
+      p.promoType ?? "",
+      p.offerDetails ?? "",
+      p.rewardValue ?? "",
+      p.minDeposit ?? "",
+      p.requiresDeposit === null ? "" : p.requiresDeposit ? "Yes" : "No",
       p.confidenceScore,
-      p.detectedAt
+      p.postDate ? format(new Date(p.postDate), "yyyy-MM-dd HH:mm") : "",
+      format(new Date(p.detectedAt), "yyyy-MM-dd HH:mm"),
     ]);
-    
     const csvContent = [headers, ...csvRows]
-      .map(e => e.map(item => `"${String(item).replace(/"/g, '""')}"`).join(","))
+      .map((e) => e.map((item) => `"${String(item).replace(/"/g, '""')}"`).join(","))
       .join("\n");
-      
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `promotions_export_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`);
+    link.setAttribute("download", `promotions_${format(new Date(), "yyyyMMdd_HHmm")}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -63,8 +81,13 @@ export default function Promotions() {
 
   const resetFilters = () => {
     setSearch("");
-    setPlatform("all");
-    setConfidence("all");
+    setOperator("");
+    setPromoType("");
+    setPlatform("");
+    setConfidence("");
+    setRequiresDeposit(undefined);
+    setDateFrom(DEFAULT_DATE_FROM);
+    setDateTo("");
     setPage(1);
   };
 
@@ -78,8 +101,8 @@ export default function Promotions() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Promotions Data</h1>
-          <p className="text-muted-foreground">Filter and analyze scraped promotional content.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Promotions</h1>
+          <p className="text-muted-foreground">Filter and analyze scraped competitor promotional content.</p>
         </div>
         <Button variant="outline" onClick={handleExport} className="gap-2">
           <Download className="h-4 w-4" />
@@ -89,18 +112,34 @@ export default function Promotions() {
 
       <Card>
         <CardContent className="p-4 border-b border-border bg-muted/40">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search operator, details..." 
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
+          <div className="flex flex-col gap-3">
+            {/* Row 1: search + operator + promo type */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search offer details, operator..."
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                  className="pl-9"
+                />
+              </div>
+              <Input
+                placeholder="Operator..."
+                value={operator}
+                onChange={(e) => { setOperator(e.target.value); setPage(1); }}
+                className="sm:w-40"
+              />
+              <Input
+                placeholder="Promo type..."
+                value={promoType}
+                onChange={(e) => { setPromoType(e.target.value); setPage(1); }}
+                className="sm:w-40"
               />
             </div>
-            <div className="flex items-center gap-3">
-              <Select value={platform || "all"} onValueChange={setPlatform}>
+            {/* Row 2: platform, confidence, requires deposit, dates, reset */}
+            <div className="flex flex-wrap items-center gap-3">
+              <Select value={platform || "all"} onValueChange={(v) => { setPlatform(v === "all" ? "" : v as Platform); setPage(1); }}>
                 <SelectTrigger className="w-[140px]">
                   <SelectValue placeholder="Platform" />
                 </SelectTrigger>
@@ -110,9 +149,9 @@ export default function Promotions() {
                   <SelectItem value="Telegram">Telegram</SelectItem>
                 </SelectContent>
               </Select>
-              
-              <Select value={confidence || "all"} onValueChange={setConfidence}>
-                <SelectTrigger className="w-[160px]">
+
+              <Select value={confidence || "all"} onValueChange={(v) => { setConfidence(v === "all" ? "" : v as Confidence); setPage(1); }}>
+                <SelectTrigger className="w-[155px]">
                   <SelectValue placeholder="Confidence" />
                 </SelectTrigger>
                 <SelectContent>
@@ -122,8 +161,41 @@ export default function Promotions() {
                   <SelectItem value="Low">Low</SelectItem>
                 </SelectContent>
               </Select>
-              
-              <Button variant="ghost" size="icon" onClick={resetFilters} title="Reset filters">
+
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="no-deposit-toggle"
+                  checked={requiresDeposit === false}
+                  onCheckedChange={(checked) => {
+                    setRequiresDeposit(checked ? false : undefined);
+                    setPage(1);
+                  }}
+                />
+                <Label htmlFor="no-deposit-toggle" className="text-sm cursor-pointer whitespace-nowrap">
+                  No-deposit only
+                </Label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground whitespace-nowrap">From</Label>
+                <Input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+                  className="w-[145px] text-sm"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground whitespace-nowrap">To</Label>
+                <Input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+                  className="w-[145px] text-sm"
+                />
+              </div>
+
+              <Button variant="ghost" size="icon" onClick={resetFilters} title="Reset all filters">
                 <RefreshCcw className="h-4 w-4" />
               </Button>
             </div>
@@ -141,21 +213,16 @@ export default function Promotions() {
                 <TableHead>Reward</TableHead>
                 <TableHead>Deposit</TableHead>
                 <TableHead>Confidence</TableHead>
-                <TableHead>Detected</TableHead>
+                <TableHead>Post Date</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 Array.from({ length: 10 }).map((_, i) => (
                   <TableRow key={i}>
-                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-48" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-12" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    {Array.from({ length: 8 }).map((__, j) => (
+                      <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
+                    ))}
                   </TableRow>
                 ))
               ) : data?.promotions.length === 0 ? (
@@ -169,9 +236,9 @@ export default function Promotions() {
                 </TableRow>
               ) : (
                 data?.promotions.map((promo) => (
-                  <TableRow 
-                    key={promo.id} 
-                    className={`cursor-pointer transition-colors ${promo.requiresDeposit === false ? 'bg-orange-50/50 dark:bg-orange-950/20' : ''}`}
+                  <TableRow
+                    key={promo.id}
+                    className={`cursor-pointer transition-colors hover:bg-muted/50 ${promo.requiresDeposit === false ? "bg-orange-50/50 dark:bg-orange-950/20" : ""}`}
                     onClick={() => setSelectedId(promo.id)}
                   >
                     <TableCell className="font-medium">{promo.operator}</TableCell>
@@ -183,24 +250,24 @@ export default function Promotions() {
                         <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
-                    <TableCell className="max-w-[200px] truncate" title={promo.offerDetails || ""}>
-                      {promo.offerDetails || <span className="text-muted-foreground">-</span>}
+                    <TableCell className="max-w-[220px] truncate" title={promo.offerDetails ?? ""}>
+                      {promo.offerDetails ?? <span className="text-muted-foreground">-</span>}
                     </TableCell>
-                    <TableCell>{promo.rewardValue || <span className="text-muted-foreground">-</span>}</TableCell>
+                    <TableCell className="whitespace-nowrap">{promo.rewardValue ?? <span className="text-muted-foreground">-</span>}</TableCell>
                     <TableCell>
                       {promo.requiresDeposit === false ? (
-                        <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-200 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800">
+                        <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-200 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800 whitespace-nowrap">
                           No Deposit
                         </Badge>
                       ) : promo.requiresDeposit === true ? (
-                        <span className="text-xs text-muted-foreground ml-2">Req.</span>
+                        <span className="text-xs text-muted-foreground">Required</span>
                       ) : (
                         <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
                     <TableCell>{renderConfidenceBadge(promo.confidenceScore)}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {format(new Date(promo.detectedAt), "MMM d, HH:mm")}
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                      {promo.postDate ? format(new Date(promo.postDate), "MMM d, HH:mm") : "-"}
                     </TableCell>
                   </TableRow>
                 ))
@@ -208,26 +275,26 @@ export default function Promotions() {
             </TableBody>
           </Table>
         </div>
-        
+
         {data && data.total > 0 && (
           <div className="p-4 border-t border-border flex items-center justify-between text-sm text-muted-foreground">
             <div>
-              Showing {(page - 1) * data.pageSize + 1} to {Math.min(page * data.pageSize, data.total)} of {data.total}
+              Showing {(page - 1) * data.pageSize + 1}–{Math.min(page * data.pageSize, data.total)} of {data.total}
             </div>
             <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 disabled={page === 1}
-                onClick={() => setPage(p => p - 1)}
+                onClick={() => setPage((p) => p - 1)}
               >
                 Previous
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 disabled={page * data.pageSize >= data.total}
-                onClick={() => setPage(p => p + 1)}
+                onClick={() => setPage((p) => p + 1)}
               >
                 Next
               </Button>
@@ -237,18 +304,23 @@ export default function Promotions() {
       </Card>
 
       <Sheet open={!!selectedId} onOpenChange={(open) => !open && setSelectedId(null)}>
-        <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
+        <SheetContent className="w-[420px] sm:w-[560px] overflow-y-auto">
           <SheetHeader className="mb-6">
             <div className="flex items-center justify-between">
               <SheetTitle>Promotion Details</SheetTitle>
               {detailData && (
-                <a href={detailData.sourceUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline flex items-center gap-1 text-sm font-medium">
+                <a
+                  href={detailData.sourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary hover:underline flex items-center gap-1 text-sm font-medium"
+                >
                   Source Post <ExternalLink className="h-3 w-3" />
                 </a>
               )}
             </div>
             <SheetDescription>
-              ID: <span className="font-mono">{selectedId}</span>
+              ID: <span className="font-mono text-xs">{selectedId}</span>
             </SheetDescription>
           </SheetHeader>
 
@@ -261,68 +333,63 @@ export default function Promotions() {
           ) : detailData ? (
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground uppercase font-semibold">Operator</div>
-                  <div className="font-medium">{detailData.operator}</div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground uppercase font-semibold">Platform</div>
-                  <div className="font-medium">{detailData.platform}</div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground uppercase font-semibold">Type</div>
-                  <div>{detailData.promoType || "-"}</div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground uppercase font-semibold">Confidence</div>
-                  <div>{renderConfidenceBadge(detailData.confidenceScore)}</div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground uppercase font-semibold">Detected At</div>
-                  <div className="text-sm">{format(new Date(detailData.detectedAt), "PPpp")}</div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground uppercase font-semibold">Post Date</div>
-                  <div className="text-sm">{detailData.postDate ? format(new Date(detailData.postDate), "PPpp") : "-"}</div>
-                </div>
+                {[
+                  { label: "Operator", value: detailData.operator },
+                  { label: "Platform", value: detailData.platform },
+                  { label: "Type", value: detailData.promoType ?? "-" },
+                  { label: "Confidence", value: renderConfidenceBadge(detailData.confidenceScore) },
+                  { label: "Post Date", value: detailData.postDate ? format(new Date(detailData.postDate), "PPpp") : "-" },
+                  { label: "Detected At", value: format(new Date(detailData.detectedAt), "PPpp") },
+                ].map(({ label, value }) => (
+                  <div key={label} className="space-y-1">
+                    <div className="text-xs text-muted-foreground uppercase font-semibold tracking-wide">{label}</div>
+                    <div className="font-medium text-sm">{value}</div>
+                  </div>
+                ))}
               </div>
 
               <div className="border-t border-border pt-4 grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground uppercase font-semibold">Reward Value</div>
-                  <div className="font-medium text-emerald-600 dark:text-emerald-400">{detailData.rewardValue || "-"}</div>
+                  <div className="text-xs text-muted-foreground uppercase font-semibold tracking-wide">Reward Value</div>
+                  <div className="font-medium text-emerald-600 dark:text-emerald-400">{detailData.rewardValue ?? "-"}</div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground uppercase font-semibold">Min Deposit</div>
-                  <div>{detailData.minDeposit || "-"}</div>
+                  <div className="text-xs text-muted-foreground uppercase font-semibold tracking-wide">Min Deposit</div>
+                  <div className="text-sm">{detailData.minDeposit ?? "-"}</div>
                 </div>
                 <div className="space-y-1 col-span-2">
-                  <div className="text-xs text-muted-foreground uppercase font-semibold">Requirements</div>
-                  <div className="text-sm bg-muted p-2 rounded-md">
+                  <div className="text-xs text-muted-foreground uppercase font-semibold tracking-wide">Terms</div>
+                  <div className="text-sm bg-muted p-3 rounded-md space-y-1">
                     {detailData.requiresDeposit === false && (
                       <Badge className="mb-2 bg-orange-100 text-orange-700 hover:bg-orange-200 border-orange-200">No Deposit Required</Badge>
                     )}
-                    <div><span className="font-medium">Wagering:</span> {detailData.wageringRequirement || "-"}</div>
-                    <div><span className="font-medium">Expiry:</span> {detailData.expiryDate || "-"}</div>
-                    <div><span className="font-medium">Audience:</span> {detailData.targetAudience || "-"}</div>
+                    <div><span className="font-medium">Wagering:</span> {detailData.wageringRequirement ?? "-"}</div>
+                    <div><span className="font-medium">Expiry:</span> {detailData.expiryDate ?? "-"}</div>
+                    <div><span className="font-medium">Audience:</span> {detailData.targetAudience ?? "-"}</div>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-2 border-t border-border pt-4">
-                <div className="text-xs text-muted-foreground uppercase font-semibold">Extracted Offer Details</div>
-                <p className="text-sm bg-muted/50 p-3 rounded-md">{detailData.offerDetails || "-"}</p>
+                <div className="text-xs text-muted-foreground uppercase font-semibold tracking-wide">Offer Details</div>
+                <p className="text-sm bg-muted/50 p-3 rounded-md">{detailData.offerDetails ?? "-"}</p>
               </div>
 
               <div className="space-y-2 border-t border-border pt-4">
-                <div className="text-xs text-muted-foreground uppercase font-semibold">Raw Post Text</div>
+                <div className="text-xs text-muted-foreground uppercase font-semibold tracking-wide">Raw Post Text</div>
                 <div className="text-sm whitespace-pre-wrap bg-muted p-3 rounded-md font-mono overflow-x-auto max-h-64 overflow-y-auto">
-                  {detailData.rawPostText || "-"}
+                  {detailData.rawPostText ?? "-"}
                 </div>
               </div>
+
+              {detailData.promptVersion && (
+                <div className="text-xs text-muted-foreground pt-2 border-t border-border">
+                  Parsed with prompt version: <span className="font-mono">{detailData.promptVersion}</span>
+                </div>
+              )}
             </div>
           ) : (
-            <div>Failed to load details</div>
+            <div className="text-muted-foreground text-sm">Failed to load promotion details.</div>
           )}
         </SheetContent>
       </Sheet>

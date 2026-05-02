@@ -1,5 +1,4 @@
 import { Router, type IRouter } from "express";
-import { getAuth } from "@clerk/express";
 import { and, desc, gte, lte, ilike, eq, or, count, sql } from "drizzle-orm";
 import { db, promotionsTable } from "@workspace/db";
 import {
@@ -9,21 +8,22 @@ import {
   GetPromotionResponse,
   GetPromotionsStatsResponse,
 } from "@workspace/api-zod";
+import { requireAuth } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
 
-function requireAuth(req: any, res: any, next: any) {
-  const auth = getAuth(req);
-  const userId = auth?.sessionClaims?.userId || auth?.userId;
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  next();
-}
-
 router.get("/promotions", requireAuth, async (req, res): Promise<void> => {
-  const parsed = ListPromotionsQueryParams.safeParse(req.query);
+  const rawQuery = req.query as Record<string, string | undefined>;
+  const queryWithFixedBool = {
+    ...rawQuery,
+    requiresDeposit:
+      rawQuery.requiresDeposit === "true"
+        ? true
+        : rawQuery.requiresDeposit === "false"
+          ? false
+          : undefined,
+  };
+  const parsed = ListPromotionsQueryParams.safeParse(queryWithFixedBool);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -60,10 +60,10 @@ router.get("/promotions", requireAuth, async (req, res): Promise<void> => {
     conditions.push(eq(promotionsTable.confidenceScore, confidenceScore));
   }
   if (dateFrom) {
-    conditions.push(gte(promotionsTable.postDate, dateFrom));
+    conditions.push(gte(promotionsTable.postDate, new Date(dateFrom)));
   }
   if (dateTo) {
-    conditions.push(lte(promotionsTable.postDate, dateTo));
+    conditions.push(lte(promotionsTable.postDate, new Date(dateTo)));
   }
   if (search) {
     conditions.push(
@@ -81,7 +81,7 @@ router.get("/promotions", requireAuth, async (req, res): Promise<void> => {
       .select()
       .from(promotionsTable)
       .where(where)
-      .orderBy(desc(promotionsTable.postDate))
+      .orderBy(desc(promotionsTable.detectedAt))
       .limit(pageSize)
       .offset((page - 1) * pageSize),
     db.select({ total: count() }).from(promotionsTable).where(where),
@@ -104,7 +104,7 @@ router.get("/promotions", requireAuth, async (req, res): Promise<void> => {
   );
 });
 
-router.get("/promotions/stats", requireAuth, async (req, res): Promise<void> => {
+router.get("/promotions/stats", requireAuth, async (_req, res): Promise<void> => {
   const now = new Date();
   const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
