@@ -14,7 +14,7 @@ const router: IRouter = Router();
 
 router.get("/promotions", requireAuth, async (req, res): Promise<void> => {
   const rawQuery = req.query as Record<string, string | undefined>;
-  const queryWithFixedBool = {
+  const queryCoerced = {
     ...rawQuery,
     requiresDeposit:
       rawQuery.requiresDeposit === "true"
@@ -22,8 +22,10 @@ router.get("/promotions", requireAuth, async (req, res): Promise<void> => {
         : rawQuery.requiresDeposit === "false"
           ? false
           : undefined,
+    dateFrom: rawQuery.dateFrom ? new Date(rawQuery.dateFrom) : undefined,
+    dateTo: rawQuery.dateTo ? new Date(rawQuery.dateTo) : undefined,
   };
-  const parsed = ListPromotionsQueryParams.safeParse(queryWithFixedBool);
+  const parsed = ListPromotionsQueryParams.safeParse(queryCoerced);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -81,7 +83,7 @@ router.get("/promotions", requireAuth, async (req, res): Promise<void> => {
       .select()
       .from(promotionsTable)
       .where(where)
-      .orderBy(desc(promotionsTable.detectedAt))
+      .orderBy(sql`${promotionsTable.postDate} DESC NULLS LAST`, desc(promotionsTable.detectedAt))
       .limit(pageSize)
       .offset((page - 1) * pageSize),
     db.select({ total: count() }).from(promotionsTable).where(where),
