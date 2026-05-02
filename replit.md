@@ -31,6 +31,15 @@ pnpm workspace monorepo using TypeScript. Promotions Monitor — an internal com
 - All routes require Clerk auth (`requireAuth` middleware)
 - Clerk proxy middleware at `/api/clerk`
 
+### Pipeline (`artifacts/pipeline`)
+- Node.js ingestion pipeline with `node-cron` scheduler (default `0 6 * * *` UTC)
+- Telegram scraper via `gramjs` (MTProto) — needs `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, `TELEGRAM_SESSION`
+- Instagram scraper via fetch + `INSTAGRAM_SESSION_ID` cookie (auto-derives `ds_user_id` and generates `csrftoken`; can be overridden by `INSTAGRAM_DS_USER_ID` and `INSTAGRAM_CSRF_TOKEN`)
+- Disables auto-redirect-following so Instagram login challenges are detected explicitly and logged with workarounds (residential proxy, third-party API)
+- LLM extraction uses gpt-5-mini with `response_format: json_object` and 2048 token budget to avoid empty reasoning-only responses
+- Run with `pnpm --filter @workspace/pipeline run run-now` (one-shot) or `run start` (cron)
+- Inter-source delay configurable via `PIPELINE_INTER_SOURCE_DELAY_MS` (default 3000ms)
+
 ## Libraries
 
 - `lib/db` — Drizzle ORM schema + client (`promotions`, `sources`, `runs` tables)

@@ -66,8 +66,12 @@ export async function runForSource(source: Source): Promise<RunStats> {
         console.log(`[pipeline] Inserted promotion from ${post.url} (confidence: ${extraction.confidence_score})`);
       } catch (postErr) {
         const msg = postErr instanceof Error ? postErr.message : String(postErr);
-        console.error(`[pipeline] Error processing post ${post.url}:`, msg);
-        errorMsg = errorMsg ? `${errorMsg}; ${msg}` : msg;
+        const cause = postErr instanceof Error && postErr.cause
+          ? (postErr.cause instanceof Error ? `${postErr.cause.message}` : String(postErr.cause))
+          : null;
+        const fullMsg = cause ? `${msg} | cause: ${cause}` : msg;
+        console.error(`[pipeline] Error processing post ${post.url}: ${fullMsg}`);
+        errorMsg = errorMsg ? `${errorMsg}; ${fullMsg}` : fullMsg;
       }
     }
   } catch (err) {

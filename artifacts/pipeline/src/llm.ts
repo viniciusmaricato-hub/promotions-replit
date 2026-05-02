@@ -57,7 +57,8 @@ export async function extractPromotion(rawText: string): Promise<ExtractedPromot
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-5-mini",
-      max_completion_tokens: 512,
+      max_completion_tokens: 2048,
+      response_format: { type: "json_object" },
       messages: [
         {
           role: "user",
@@ -68,6 +69,14 @@ export async function extractPromotion(rawText: string): Promise<ExtractedPromot
 
     const content = response.choices[0]?.message?.content ?? "";
     const trimmed = content.trim();
+
+    if (!trimmed) {
+      console.warn(
+        `[llm] Empty response from model. finish_reason=${response.choices[0]?.finish_reason ?? "n/a"} ` +
+        `usage=${JSON.stringify(response.usage ?? {})}`
+      );
+      return FALLBACK_LOW_CONFIDENCE;
+    }
 
     let parsed: unknown;
     try {

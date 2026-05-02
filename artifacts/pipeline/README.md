@@ -50,13 +50,24 @@ Once `TELEGRAM_SESSION` is set, the scraper reuses it on every run without re-au
 
 | Variable | Description |
 |---|---|
-| `INSTAGRAM_SESSION_ID` | Your Instagram `sessionid` cookie value |
+| `INSTAGRAM_SESSION_ID` | **Required.** Your Instagram `sessionid` cookie value |
+| `INSTAGRAM_DS_USER_ID` | Optional. The numeric user ID from your `ds_user_id` cookie. Auto-derived from `sessionid` when omitted. |
+| `INSTAGRAM_CSRF_TOKEN` | Optional. The `csrftoken` cookie value. A random token is generated when omitted. |
 
-To obtain the Instagram session ID:
+To obtain the Instagram cookies:
 1. Log in to Instagram in your browser
 2. Open DevTools → Application → Cookies → instagram.com
-3. Copy the value of the `sessionid` cookie
-4. Set `INSTAGRAM_SESSION_ID` in your Replit environment secrets
+3. Copy the values of the `sessionid`, `ds_user_id`, and `csrftoken` cookies
+4. Set them as secrets in Replit (only `INSTAGRAM_SESSION_ID` is strictly required)
+
+**IMPORTANT — Instagram IP trust:** Instagram aggressively rejects sessions that appear to be reused from a different IP address than the one where the login took place. When the session is not trusted, the API redirects to a login challenge page and our scraper logs an "Auth challenge" warning. Common symptoms:
+
+- `Auth challenge for <user>: Instagram redirected to /accounts/login/...` — the cookie is being rejected for this server's IP. Workarounds:
+  - Capture a fresh session from the same region/IP as the server when possible
+  - Use a residential proxy
+  - Switch to a third-party Instagram scraping API (Apify, RapidAPI, etc.)
+- `No user ID returned for <user>` with `status=ok` — Instagram returned an empty profile payload. This is another flavor of the same trust issue, sometimes specific to high-traffic public accounts. The same workarounds apply.
+- `HTTP 404` on profile lookup — the handle does not exist on Instagram. Check the `sources` table and correct the `handle` field via the Sources page in the dashboard.
 
 **Note:** Sources for platforms with missing credentials are skipped gracefully — the pipeline continues and logs a `records_fetched: 0` entry for those sources.
 
