@@ -94,6 +94,10 @@ export async function runForSource(source: Source): Promise<RunStats> {
   };
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function runPipeline(): Promise<void> {
   console.log(`[pipeline] Starting pipeline run at ${new Date().toISOString()}`);
 
@@ -107,10 +111,16 @@ export async function runPipeline(): Promise<void> {
 
   console.log(`[pipeline] Found ${sources.length} active source(s)`);
 
+  const interSourceDelayMs = Number(process.env["PIPELINE_INTER_SOURCE_DELAY_MS"] ?? "3000");
+
   const results: RunStats[] = [];
-  for (const source of sources) {
+  for (let i = 0; i < sources.length; i++) {
+    const source = sources[i]!;
     const stats = await runForSource(source);
     results.push(stats);
+    if (i < sources.length - 1 && interSourceDelayMs > 0) {
+      await sleep(interSourceDelayMs);
+    }
   }
 
   const totalFetched = results.reduce((sum, r) => sum + r.recordsFetched, 0);
