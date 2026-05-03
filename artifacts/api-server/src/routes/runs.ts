@@ -1,6 +1,18 @@
 import { Router, type IRouter } from "express";
 import { desc } from "drizzle-orm";
-import { db, runsTable } from "@workspace/db";
+import {
+  db,
+  runsTable,
+  tryAcquireRunLock,
+  getProgressSnapshot,
+  updateRunProgress,
+  markRunFinished,
+  clearRunStateIfFinished,
+  heartbeatRunLock,
+  FINISHED_LINGER_MS,
+} from "@workspace/db";
+
+const HEARTBEAT_INTERVAL_MS = 30_000;
 import { ListRunsQueryParams, ListRunsResponse } from "@workspace/api-zod";
 import { runPipeline, type PipelineProgressEvent } from "@workspace/pipeline/pipeline";
 import { requireAuth } from "../middlewares/requireAuth";
@@ -8,112 +20,77 @@ import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
-type ProgressState = {
-  status: "idle" | "running" | "finished";
-  total: number;
-  completed: number;
-  currentSource: string | null;
-  currentPlatform: "Instagram" | "Telegram" | null;
-  startedAt: string | null;
-  finishedAt: string | null;
-};
-
-const IDLE_STATE: ProgressState = {
-  status: "idle",
-  total: 0,
-  completed: 0,
-  currentSource: null,
-  currentPlatform: null,
-  startedAt: null,
-  finishedAt: null,
-};
-
-let progress: ProgressState = { ...IDLE_STATE };
-let resetTimer: NodeJS.Timeout | null = null;
-const FINISHED_LINGER_MS = 8000;
-
-function handleProgressEvent(event: PipelineProgressEvent): void {
+async function handleProgressEvent(event: PipelineProgressEvent): Promise<void> {
   switch (event.type) {
     case "started":
-      progress = {
+      await updateRunProgress({
         status: "running",
         total: event.total,
         completed: 0,
         currentSource: null,
         currentPlatform: null,
-        startedAt: progress.startedAt ?? new Date().toISOString(),
-        finishedAt: null,
-      };
+      });
       break;
     case "job-started":
-      progress = {
-        ...progress,
+      await updateRunProgress({
         status: "running",
         total: event.total,
         currentSource: event.source,
         currentPlatform: event.platform,
-      };
+      });
       break;
     case "job-finished":
-      progress = {
-        ...progress,
+      await updateRunProgress({
         status: "running",
         total: event.total,
         completed: event.index + 1,
-      };
+      });
       break;
     case "finished":
-      progress = {
-        ...progress,
-        status: "finished",
-        total: event.total,
-        completed: event.total,
-        currentSource: null,
-        currentPlatform: null,
-        finishedAt: new Date().toISOString(),
-      };
+      await markRunFinished({ total: event.total, completed: event.total });
       break;
   }
 }
 
 router.post("/runs/trigger", requireAuth, async (_req, res): Promise<void> => {
-  if (progress.status === "running") {
+  const lock = await tryAcquireRunLock();
+  if (!lock.acquired) {
     res.status(409).json({ error: "A pipeline run is already in progress." });
     return;
   }
 
-  if (resetTimer) {
-    clearTimeout(resetTimer);
-    resetTimer = null;
-  }
-
-  const startedAt = new Date().toISOString();
-  progress = {
-    status: "running",
-    total: 0,
-    completed: 0,
-    currentSource: null,
-    currentPlatform: null,
-    startedAt,
-    finishedAt: null,
-  };
+  const startedAt = lock.startedAt;
 
   void (async () => {
+    const heartbeat = setInterval(() => {
+      heartbeatRunLock().catch((err) => {
+        logger.error({ err }, "[runs/trigger] heartbeat failed");
+      });
+    }, HEARTBEAT_INTERVAL_MS);
     try {
       logger.info("[runs/trigger] starting manual pipeline run");
-      await runPipeline({ onProgress: handleProgressEvent, trigger: "manual" });
+      await runPipeline({
+        onProgress: (event) => {
+          handleProgressEvent(event).catch((err) => {
+            logger.error({ err }, "[runs/trigger] progress update failed");
+          });
+        },
+        trigger: "manual",
+      });
       logger.info("[runs/trigger] manual pipeline run completed");
     } catch (err) {
       logger.error({ err }, "[runs/trigger] manual pipeline run failed");
-      progress = {
-        ...progress,
-        status: "finished",
-        finishedAt: new Date().toISOString(),
-      };
+      try {
+        await markRunFinished();
+      } catch (markErr) {
+        logger.error({ err: markErr }, "[runs/trigger] failed to mark run finished");
+      }
     } finally {
-      resetTimer = setTimeout(() => {
-        progress = { ...IDLE_STATE };
-        resetTimer = null;
+      clearInterval(heartbeat);
+      setTimeout(() => {
+        clearRunStateIfFinished().catch((err) => {
+          logger.error({ err }, "[runs/trigger] failed to clear finished run state");
+        });
       }, FINISHED_LINGER_MS);
     }
   })();
@@ -121,8 +98,9 @@ router.post("/runs/trigger", requireAuth, async (_req, res): Promise<void> => {
   res.status(202).json({ status: "started", startedAt });
 });
 
-router.get("/runs/progress", requireAuth, (_req, res): void => {
-  res.json(progress);
+router.get("/runs/progress", requireAuth, async (_req, res): Promise<void> => {
+  const snapshot = await getProgressSnapshot();
+  res.json(snapshot);
 });
 
 router.get("/runs", requireAuth, async (req, res): Promise<void> => {
