@@ -1,10 +1,17 @@
-import { useListRuns, useTriggerRun, getListRunsQueryKey } from "@workspace/api-client-react";
+import {
+  useListRuns,
+  useTriggerRun,
+  useGetRunProgress,
+  getListRunsQueryKey,
+  getGetRunProgressQueryKey,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckCircle2, XCircle, AlertCircle, Play, Loader2 } from "lucide-react";
@@ -19,6 +26,17 @@ export default function Runs() {
     },
   });
 
+  const { data: progress } = useGetRunProgress({
+    query: {
+      queryKey: getGetRunProgressQueryKey(),
+      refetchInterval: (query) => {
+        const status = query.state.data?.status;
+        return status === "running" || status === "finished" ? 2000 : false;
+      },
+      refetchIntervalInBackground: false,
+    },
+  });
+
   const triggerRun = useTriggerRun({
     mutation: {
       onSuccess: () => {
@@ -26,6 +44,7 @@ export default function Runs() {
           description: "New entries will appear below as the pipeline processes each source.",
         });
         queryClient.invalidateQueries({ queryKey: getListRunsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetRunProgressQueryKey() });
       },
       onError: (err: unknown) => {
         const message =
@@ -64,6 +83,14 @@ export default function Runs() {
     }
   };
 
+  const showProgress =
+    progress && (progress.status === "running" || progress.status === "finished");
+  const progressTotal = progress?.total ?? 0;
+  const progressCompleted = progress?.completed ?? 0;
+  const progressPct =
+    progressTotal > 0 ? Math.round((progressCompleted / progressTotal) * 100) : 0;
+  const isRunning = progress?.status === "running";
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -73,12 +100,13 @@ export default function Runs() {
         </div>
         <Button
           onClick={() => triggerRun.mutate()}
-          disabled={triggerRun.isPending}
+          disabled={triggerRun.isPending || isRunning}
           className="gap-2"
         >
-          {triggerRun.isPending ? (
+          {triggerRun.isPending || isRunning ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" /> Starting...
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {isRunning ? "Running..." : "Starting..."}
             </>
           ) : (
             <>
@@ -87,6 +115,44 @@ export default function Runs() {
           )}
         </Button>
       </div>
+
+      {showProgress && (
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              {isRunning ? (
+                <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+              )}
+              <div className="min-w-0">
+                <div className="text-sm font-medium">
+                  {isRunning ? "Running pipeline" : "Run complete"}
+                  <span className="text-muted-foreground font-normal ml-2">
+                    {progressCompleted} / {progressTotal} jobs
+                  </span>
+                </div>
+                {isRunning && progress?.currentSource && (
+                  <div className="text-xs text-muted-foreground truncate">
+                    Currently processing:{" "}
+                    <span className="font-medium text-foreground">{progress.currentSource}</span>
+                    {progress.currentPlatform && (
+                      <>
+                        {" · "}
+                        <span>{progress.currentPlatform}</span>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="text-sm font-mono text-muted-foreground tabular-nums shrink-0">
+              {progressPct}%
+            </div>
+          </div>
+          <Progress value={progressPct} className="mt-3 h-2" />
+        </Card>
+      )}
 
       <Card>
         <div className="overflow-x-auto">

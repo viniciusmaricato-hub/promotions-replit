@@ -105,7 +105,27 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function runPipeline(): Promise<void> {
+export type PipelineProgressEvent =
+  | { type: "started"; total: number }
+  | { type: "job-started"; index: number; total: number; source: string; platform: "Instagram" | "Telegram" }
+  | { type: "job-finished"; index: number; total: number; source: string; platform: "Instagram" | "Telegram" }
+  | { type: "finished"; total: number };
+
+export interface RunPipelineOptions {
+  onProgress?: (event: PipelineProgressEvent) => void;
+}
+
+export async function runPipeline(options: RunPipelineOptions = {}): Promise<void> {
+  const { onProgress } = options;
+  const emit = (event: PipelineProgressEvent) => {
+    if (!onProgress) return;
+    try {
+      onProgress(event);
+    } catch (err) {
+      console.error("[pipeline] onProgress callback threw:", err);
+    }
+  };
+
   console.log(`[pipeline] Starting pipeline run at ${new Date().toISOString()}`);
 
   const operators = await getActiveOperators();
@@ -114,6 +134,8 @@ export async function runPipeline(): Promise<void> {
     console.log(
       "[pipeline] No active operators found. Add operators in the dashboard to begin scraping.",
     );
+    emit({ type: "started", total: 0 });
+    emit({ type: "finished", total: 0 });
     return;
   }
 
@@ -132,6 +154,8 @@ export async function runPipeline(): Promise<void> {
     console.log(
       "[pipeline] No active operators have Instagram or Telegram handles configured.",
     );
+    emit({ type: "started", total: 0 });
+    emit({ type: "finished", total: 0 });
     return;
   }
 
@@ -139,17 +163,35 @@ export async function runPipeline(): Promise<void> {
     `[pipeline] Found ${operators.length} active operator(s) with ${jobs.length} platform job(s)`,
   );
 
+  emit({ type: "started", total: jobs.length });
+
   const interSourceDelayMs = Number(process.env["PIPELINE_INTER_SOURCE_DELAY_MS"] ?? "3000");
 
   const results: RunStats[] = [];
   for (let i = 0; i < jobs.length; i++) {
     const job = jobs[i]!;
+    emit({
+      type: "job-started",
+      index: i,
+      total: jobs.length,
+      source: job.operator.name,
+      platform: job.platform,
+    });
     const stats = await runForOperatorPlatform(job.operator, job.platform, job.handle);
     results.push(stats);
+    emit({
+      type: "job-finished",
+      index: i,
+      total: jobs.length,
+      source: job.operator.name,
+      platform: job.platform,
+    });
     if (i < jobs.length - 1 && interSourceDelayMs > 0) {
       await sleep(interSourceDelayMs);
     }
   }
+
+  emit({ type: "finished", total: jobs.length });
 
   const totalFetched = results.reduce((sum, r) => sum + r.recordsFetched, 0);
   const totalInserted = results.reduce((sum, r) => sum + r.recordsInserted, 0);

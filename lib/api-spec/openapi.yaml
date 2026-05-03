@@ -408,6 +408,26 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /runs/progress:
+    get:
+      operationId: getRunProgress
+      tags: [runs]
+      summary: Current manual pipeline run progress
+      description: Returns the in-memory progress of the most recent manually triggered pipeline run. Returns idle state when no run is in flight.
+      responses:
+        "200":
+          description: Current progress state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunProgress"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /runs:
     get:
       operationId: listRuns
@@ -767,6 +787,34 @@ components:
       required:
         - status
         - startedAt
+
+    RunProgress:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [idle, running, finished]
+        total:
+          type: integer
+        completed:
+          type: integer
+        currentSource:
+          type: ["string", "null"]
+        currentPlatform:
+          type: ["string", "null"]
+          enum: [Instagram, Telegram, null]
+        startedAt:
+          type: ["string", "null"]
+        finishedAt:
+          type: ["string", "null"]
+      required:
+        - status
+        - total
+        - completed
+        - currentSource
+        - currentPlatform
+        - startedAt
+        - finishedAt
 
     RunLog:
       type: object

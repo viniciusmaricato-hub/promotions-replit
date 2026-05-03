@@ -183,6 +183,41 @@ export interface TriggerRunResponse {
   startedAt: string;
 }
 
+export type RunProgressStatus =
+  (typeof RunProgressStatus)[keyof typeof RunProgressStatus];
+
+export const RunProgressStatus = {
+  idle: "idle",
+  running: "running",
+  finished: "finished",
+} as const;
+
+/**
+ * @nullable
+ */
+export type RunProgressCurrentPlatform =
+  | (typeof RunProgressCurrentPlatform)[keyof typeof RunProgressCurrentPlatform]
+  | null;
+
+export const RunProgressCurrentPlatform = {
+  Instagram: "Instagram",
+  Telegram: "Telegram",
+} as const;
+
+export interface RunProgress {
+  status: RunProgressStatus;
+  total: number;
+  completed: number;
+  /** @nullable */
+  currentSource: string | null;
+  /** @nullable */
+  currentPlatform: RunProgressCurrentPlatform;
+  /** @nullable */
+  startedAt: string | null;
+  /** @nullable */
+  finishedAt: string | null;
+}
+
 export type RunLogStatus = (typeof RunLogStatus)[keyof typeof RunLogStatus];
 
 export const RunLogStatus = {

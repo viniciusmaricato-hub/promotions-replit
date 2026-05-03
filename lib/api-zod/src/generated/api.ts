@@ -256,6 +256,26 @@ export const UpdateOperatorResponse = zod.object({
 });
 
 /**
+ * Returns the in-memory progress of the most recent manually triggered pipeline run. Returns idle state when no run is in flight.
+ * @summary Current manual pipeline run progress
+ */
+export const GetRunProgressResponse = zod.object({
+  status: zod.enum(["idle", "running", "finished"]),
+  total: zod.number(),
+  completed: zod.number(),
+  currentSource: zod.string().nullable(),
+  currentPlatform: zod
+    .union([
+      zod.literal("Instagram"),
+      zod.literal("Telegram"),
+      zod.literal(null),
+    ])
+    .nullable(),
+  startedAt: zod.string().nullable(),
+  finishedAt: zod.string().nullable(),
+});
+
+/**
  * @summary List recent ingestion runs
  */
 export const listRunsQueryLimitDefault = 50;

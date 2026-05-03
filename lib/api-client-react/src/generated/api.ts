@@ -30,6 +30,7 @@ import type {
   Promotion,
   PromotionStats,
   RunLog,
+  RunProgress,
   Source,
   TriggerRunResponse,
   UpdateOperatorBody,
@@ -1045,6 +1046,82 @@ export const useTriggerRun = <
 > => {
   return useMutation(getTriggerRunMutationOptions(options));
 };
+
+/**
+ * Returns the in-memory progress of the most recent manually triggered pipeline run. Returns idle state when no run is in flight.
+ * @summary Current manual pipeline run progress
+ */
+export const getGetRunProgressUrl = () => {
+  return `/api/runs/progress`;
+};
+
+export const getRunProgress = async (
+  options?: RequestInit,
+): Promise<RunProgress> => {
+  return customFetch<RunProgress>(getGetRunProgressUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRunProgressQueryKey = () => {
+  return [`/api/runs/progress`] as const;
+};
+
+export const getGetRunProgressQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRunProgress>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRunProgress>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRunProgressQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRunProgress>>> = ({
+    signal,
+  }) => getRunProgress({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRunProgress>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRunProgressQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRunProgress>>
+>;
+export type GetRunProgressQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Current manual pipeline run progress
+ */
+
+export function useGetRunProgress<
+  TData = Awaited<ReturnType<typeof getRunProgress>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRunProgress>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRunProgressQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary List recent ingestion runs
