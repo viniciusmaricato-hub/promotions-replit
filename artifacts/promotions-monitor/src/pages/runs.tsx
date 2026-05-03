@@ -130,9 +130,9 @@ export default function Runs() {
               )}
               <div className="min-w-0">
                 <div className="text-sm font-medium">
-                  {isRunning ? "Running pipeline" : "Run complete"}
-                  <span className="text-muted-foreground font-normal ml-2">
-                    {progressCompleted} / {progressTotal} jobs
+                  {isRunning ? "Running:" : "Done:"}{" "}
+                  <span className="font-mono tabular-nums">
+                    {progressCompleted} / {progressTotal}
                   </span>
                 </div>
                 {isRunning && progress?.currentSource && (
