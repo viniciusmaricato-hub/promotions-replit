@@ -1,13 +1,43 @@
-import { useListRuns } from "@workspace/api-client-react";
+import { useListRuns, useTriggerRun, getListRunsQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2, XCircle, AlertCircle } from "lucide-react";
+import { CheckCircle2, XCircle, AlertCircle, Play, Loader2 } from "lucide-react";
 
 export default function Runs() {
-  const { data: runs, isLoading } = useListRuns({ limit: 50 });
+  const queryClient = useQueryClient();
+  const listRunsParams = { limit: 50 };
+  const { data: runs, isLoading } = useListRuns(listRunsParams, {
+    query: {
+      queryKey: getListRunsQueryKey(listRunsParams),
+      refetchInterval: 5000,
+    },
+  });
+
+  const triggerRun = useTriggerRun({
+    mutation: {
+      onSuccess: () => {
+        toast.success("Pipeline run started", {
+          description: "New entries will appear below as the pipeline processes each source.",
+        });
+        queryClient.invalidateQueries({ queryKey: getListRunsQueryKey() });
+      },
+      onError: (err: unknown) => {
+        const message =
+          err instanceof Error
+            ? err.message
+            : typeof err === "object" && err !== null && "error" in err
+              ? String((err as { error: unknown }).error)
+              : "Failed to start the pipeline.";
+        toast.error("Could not start pipeline", { description: message });
+      },
+    },
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -36,9 +66,26 @@ export default function Runs() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">System Logs</h1>
-        <p className="text-muted-foreground">Recent ingestion and processing runs.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">System Logs</h1>
+          <p className="text-muted-foreground">Recent ingestion and processing runs.</p>
+        </div>
+        <Button
+          onClick={() => triggerRun.mutate()}
+          disabled={triggerRun.isPending}
+          className="gap-2"
+        >
+          {triggerRun.isPending ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Starting...
+            </>
+          ) : (
+            <>
+              <Play className="h-4 w-4" /> Run Now
+            </>
+          )}
+        </Button>
       </div>
 
       <Card>

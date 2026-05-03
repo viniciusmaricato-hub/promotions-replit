@@ -178,6 +178,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../../lib/db
+      '@workspace/pipeline':
+        specifier: workspace:*
+        version: link:../pipeline
       cookie-parser:
         specifier: ^1.4.7
         version: 1.4.7

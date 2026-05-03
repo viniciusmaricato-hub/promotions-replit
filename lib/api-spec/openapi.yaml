@@ -382,6 +382,32 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /runs/trigger:
+    post:
+      operationId: triggerRun
+      tags: [runs]
+      summary: Trigger an immediate pipeline run
+      description: Starts the ingestion pipeline in the background. Returns immediately; progress can be observed via /runs.
+      responses:
+        "202":
+          description: Run started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TriggerRunResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: A run is already in progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /runs:
     get:
       operationId: listRuns
@@ -729,6 +755,18 @@ components:
         - updated
         - skipped
         - errors
+
+    TriggerRunResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [started]
+        startedAt:
+          type: string
+      required:
+        - status
+        - startedAt
 
     RunLog:
       type: object

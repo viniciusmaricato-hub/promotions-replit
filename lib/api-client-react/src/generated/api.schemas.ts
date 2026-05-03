@@ -171,6 +171,18 @@ export interface ImportOperatorsResponse {
   errors: ImportRowError[];
 }
 
+export type TriggerRunResponseStatus =
+  (typeof TriggerRunResponseStatus)[keyof typeof TriggerRunResponseStatus];
+
+export const TriggerRunResponseStatus = {
+  started: "started",
+} as const;
+
+export interface TriggerRunResponse {
+  status: TriggerRunResponseStatus;
+  startedAt: string;
+}
+
 export type RunLogStatus = (typeof RunLogStatus)[keyof typeof RunLogStatus];
 
 export const RunLogStatus = {

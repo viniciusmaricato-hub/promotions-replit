@@ -31,6 +31,7 @@ import type {
   PromotionStats,
   RunLog,
   Source,
+  TriggerRunResponse,
   UpdateOperatorBody,
   UpdateSourceBody,
 } from "./api.schemas";
@@ -961,6 +962,88 @@ export const useUpdateOperator = <
   TContext
 > => {
   return useMutation(getUpdateOperatorMutationOptions(options));
+};
+
+/**
+ * Starts the ingestion pipeline in the background. Returns immediately; progress can be observed via /runs.
+ * @summary Trigger an immediate pipeline run
+ */
+export const getTriggerRunUrl = () => {
+  return `/api/runs/trigger`;
+};
+
+export const triggerRun = async (
+  options?: RequestInit,
+): Promise<TriggerRunResponse> => {
+  return customFetch<TriggerRunResponse>(getTriggerRunUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getTriggerRunMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof triggerRun>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof triggerRun>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["triggerRun"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof triggerRun>>,
+    void
+  > = () => {
+    return triggerRun(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TriggerRunMutationResult = NonNullable<
+  Awaited<ReturnType<typeof triggerRun>>
+>;
+
+export type TriggerRunMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Trigger an immediate pipeline run
+ */
+export const useTriggerRun = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof triggerRun>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof triggerRun>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getTriggerRunMutationOptions(options));
 };
 
 /**
