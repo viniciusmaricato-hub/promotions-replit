@@ -86,7 +86,7 @@ After every **scheduled** pipeline run (in-process cron tick or one-shot `--run-
 | Variable | Description |
 |---|---|
 | `PIPELINE_NOTIFY_EMAIL` | Recipient address. Defaults to `viniciussmaricato@gmail.com`. Persisted as a shared env var in this workspace. |
-| `PIPELINE_NOTIFY_FROM` | Optional override for the "from" address. Defaults to the verified sender configured on the Resend connection, falling back to `onboarding@resend.dev`. |
+| `PIPELINE_NOTIFY_FROM` | Optional override for the "from" address. Defaults to `onboarding@resend.dev` (Resend's sandbox sender, which delivers to the Resend account owner's verified email). Once you verify a custom domain in the Resend dashboard, set this to a branded sender like `alerts@yourdomain.com`. |
 
 ### Resend connection
 

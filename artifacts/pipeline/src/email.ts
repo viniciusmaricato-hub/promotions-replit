@@ -3,7 +3,6 @@ import type { RunStats } from "./pipeline.js";
 
 interface ResendCredentials {
   apiKey: string;
-  fromEmail: string | null;
 }
 
 async function getResendCredentials(): Promise<ResendCredentials> {
@@ -35,16 +34,13 @@ async function getResendCredentials(): Promise<ResendCredentials> {
   if (!item || !item.settings.api_key) {
     throw new Error("Resend not connected");
   }
-  return {
-    apiKey: item.settings.api_key,
-    fromEmail: item.settings.from_email ?? null,
-  };
+  return { apiKey: item.settings.api_key };
 }
 
 // Per integrations skill: never cache the client; tokens may expire.
-async function getUncachableResendClient(): Promise<{ client: Resend; fromEmail: string | null }> {
-  const { apiKey, fromEmail } = await getResendCredentials();
-  return { client: new Resend(apiKey), fromEmail };
+async function getUncachableResendClient(): Promise<{ client: Resend }> {
+  const { apiKey } = await getResendCredentials();
+  return { client: new Resend(apiKey) };
 }
 
 export interface RunSummary {
@@ -185,41 +181,26 @@ export async function sendRunSummaryEmail(summary: RunSummary): Promise<void> {
   const subjectBase = `[Promotions Monitor] Daily run summary — ${formatTimestampUtc(summary.startedAt)}`;
   const subject = errorCount > 0 ? `${subjectBase} (with errors)` : subjectBase;
 
-  const { client, fromEmail: connectionFromEmail } = await getUncachableResendClient();
-  // Sender selection (in order):
-  //   1. PIPELINE_NOTIFY_FROM env var (explicit override)
-  //   2. The Resend connection's configured from_email
-  //   3. onboarding@resend.dev (Resend's always-allowed sandbox sender,
-  //      delivers to the account owner's verified email)
-  // If the primary sender is rejected (e.g. unverified domain), we retry
-  // once against onboarding@resend.dev so the digest still goes out.
-  const primaryFrom =
-    process.env["PIPELINE_NOTIFY_FROM"] ??
-    connectionFromEmail ??
-    "onboarding@resend.dev";
-  const fromCandidates = Array.from(
-    new Set([primaryFrom, "onboarding@resend.dev"].filter(Boolean) as string[]),
-  );
+  const { client } = await getUncachableResendClient();
+  // Sender selection is deterministic — single send, no retry. The default
+  // is Resend's sandbox sender (always allowed, delivers to the Resend
+  // account owner's verified email). Once a custom domain is verified in
+  // Resend, set PIPELINE_NOTIFY_FROM to switch to a branded sender.
+  const fromEmail = process.env["PIPELINE_NOTIFY_FROM"] ?? "onboarding@resend.dev";
 
-  let lastError: unknown = null;
-  for (const from of fromCandidates) {
-    const result = await client.emails.send({
-      from,
-      to: recipient,
-      subject,
-      html: renderHtml(summary),
-      text: renderText(summary),
-    });
-    if (!result.error) {
-      console.log(
-        `[pipeline] Run summary email sent from ${from} to ${recipient} (jobs=${summary.results.length}, inserted=${totalInserted}, errors=${errorCount}, id=${result.data?.id ?? "?"})`,
-      );
-      return;
-    }
-    lastError = result.error;
-    console.warn(
-      `[pipeline] Resend rejected sender ${from}: ${JSON.stringify(result.error)}`,
-    );
+  const result = await client.emails.send({
+    from: fromEmail,
+    to: recipient,
+    subject,
+    html: renderHtml(summary),
+    text: renderText(summary),
+  });
+
+  if (result.error) {
+    throw new Error(`Resend API returned error: ${JSON.stringify(result.error)}`);
   }
-  throw new Error(`Resend API returned error: ${JSON.stringify(lastError)}`);
+
+  console.log(
+    `[pipeline] Run summary email sent from ${fromEmail} to ${recipient} (jobs=${summary.results.length}, inserted=${totalInserted}, errors=${errorCount}, id=${result.data?.id ?? "?"})`,
+  );
 }
