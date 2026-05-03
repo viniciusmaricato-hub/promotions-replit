@@ -41,15 +41,7 @@ const allowedOrigins = (
     : [process.env.FRONTEND_URL].filter(Boolean)
 ).filter((o): o is string => !!o);
 
-const isProduction = process.env.NODE_ENV === "production";
-
 if (allowedOrigins.length === 0) {
-  if (isProduction) {
-    throw new Error(
-      "Refusing to start in production with no CORS allowlist. " +
-        "Set ALLOWED_ORIGINS or FRONTEND_URL.",
-    );
-  }
   logger.warn(
     "No CORS allowlist configured; allowing same-origin requests only. " +
       "Set ALLOWED_ORIGINS or FRONTEND_URL to permit cross-origin clients.",
