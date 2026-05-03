@@ -59,6 +59,7 @@ externalPort = 3000
 
 [userenv.shared]
 VITE_CLERK_PUBLISHABLE_KEY = "pk_test_YW1hemVkLWxlZWNoLTY1LmNsZXJrLmFjY291bnRzLmRldiQ"
+PIPELINE_CRON_SCHEDULE = "0 6 * * *"
 
 [userenv.production]
 FRONTEND_URL = "https://promotions-monitor.replit.app"
