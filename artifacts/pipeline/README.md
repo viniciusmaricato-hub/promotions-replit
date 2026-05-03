@@ -71,11 +71,44 @@ To obtain the Instagram cookies:
 
 **Note:** Sources for platforms with missing credentials are skipped gracefully — the pipeline continues and logs a `records_fetched: 0` entry for those sources.
 
-## Cron Schedule
+## Daily Recurrent Run
 
-The default schedule is **daily at 06:00 UTC** (`0 6 * * *`).
+The pipeline is designed to run once per day. It is published as a **Replit Scheduled Deployment** that lives alongside the main app's autoscale deployment.
 
-Override with the `PIPELINE_CRON_SCHEDULE` environment variable:
+### Production — Replit Scheduled Deployment (recommended)
+
+Each scheduled run is a one-shot invocation that exits cleanly when finished — perfect for Replit's scheduled-deployment runtime.
+
+1. Open the **Publishing** tool in the workspace
+2. Click **Create deployment** → choose **Scheduled**
+3. Configure:
+   - **Build command** *(optional, leave blank — `tsx` runs the TypeScript directly at runtime)*
+   - **Run command**: `pnpm --filter @workspace/pipeline run run-now`
+   - **Schedule**: `0 6 * * *` *(daily at 06:00 UTC — or use the natural-language input, e.g. "every day at 6am UTC")*
+   - **Job timeout**: 30 minutes is a safe upper bound for a typical run
+4. Add the deployment secrets the pipeline needs (these are **separate** from the main app's secrets):
+   - `DATABASE_URL` — same Postgres database the dashboard reads from
+   - `INSTAGRAM_SESSION_ID`
+   - `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, `TELEGRAM_SESSION` *(only if you have Telegram operators configured)*
+   - `AI_INTEGRATIONS_OPENAI_BASE_URL`, `AI_INTEGRATIONS_OPENAI_API_KEY`
+5. Click **Deploy**
+
+The first run kicks off on the next scheduled tick. Subsequent runs append to the `runs` table, visible on the dashboard's **System Logs** page.
+
+### Local & one-shot runs
+
+```bash
+# Trigger a single immediate run (mirrors what the scheduled deployment does)
+pnpm --filter @workspace/pipeline run run-now
+
+# Start the in-process node-cron scheduler (useful for long local dev sessions;
+# fires on the same default schedule as production)
+pnpm --filter @workspace/pipeline run start
+```
+
+### Schedule overrides (in-process cron only)
+
+Only relevant when running the in-process scheduler via `pnpm run start`. Replit's scheduled deployment uses the cron expression configured in the Publishing UI and ignores this env var.
 
 ```bash
 PIPELINE_CRON_SCHEDULE="0 */6 * * *"  # Every 6 hours

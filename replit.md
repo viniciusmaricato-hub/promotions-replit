@@ -37,7 +37,8 @@ pnpm workspace monorepo using TypeScript. Promotions Monitor — an internal com
 - Instagram scraper via fetch + `INSTAGRAM_SESSION_ID` cookie (auto-derives `ds_user_id` and generates `csrftoken`; can be overridden by `INSTAGRAM_DS_USER_ID` and `INSTAGRAM_CSRF_TOKEN`)
 - Disables auto-redirect-following so Instagram login challenges are detected explicitly and logged with workarounds (residential proxy, third-party API)
 - LLM extraction uses gpt-5-mini with `response_format: json_object` and 2048 token budget to avoid empty reasoning-only responses
-- Run with `pnpm --filter @workspace/pipeline run run-now` (one-shot) or `run start` (cron)
+- Run with `pnpm --filter @workspace/pipeline run run-now` (one-shot) or `run start` (in-process cron)
+- **Production scheduling**: published as a Replit **Scheduled Deployment** (separate from the dashboard's autoscale deployment). Run command `pnpm --filter @workspace/pipeline run run-now`, default schedule `0 6 * * *` UTC. See `artifacts/pipeline/README.md` for setup steps.
 - Inter-source delay configurable via `PIPELINE_INTER_SOURCE_DELAY_MS` (default 3000ms)
 
 ## Libraries
