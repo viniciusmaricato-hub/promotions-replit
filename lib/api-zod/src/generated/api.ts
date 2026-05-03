@@ -99,6 +99,15 @@ export const GetPromotionsStatsResponse = zod.object({
 });
 
 /**
+ * Returns the sorted list of distinct, non-empty promo type values present in the database.
+ * @summary List distinct promo types
+ */
+export const ListPromotionTypesResponseItem = zod.string();
+export const ListPromotionTypesResponse = zod.array(
+  ListPromotionTypesResponseItem,
+);
+
+/**
  * @summary Get a single promotion
  */
 export const GetPromotionParams = zod.object({

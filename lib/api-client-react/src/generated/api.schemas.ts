@@ -51,6 +51,8 @@ export interface ListPromotionsResponse {
   pageSize: number;
 }
 
+export type ListPromotionTypesResponse = string[];
+
 export interface PlatformCount {
   platform: string;
   count: number;

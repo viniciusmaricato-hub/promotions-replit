@@ -7,6 +7,7 @@ import {
   ListPromotionsResponse,
   GetPromotionResponse,
   GetPromotionsStatsResponse,
+  ListPromotionTypesResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
 
@@ -186,6 +187,19 @@ router.get("/promotions/stats", requireAuth, async (_req, res): Promise<void> =>
       })),
     }),
   );
+});
+
+router.get("/promotions/types", requireAuth, async (_req, res): Promise<void> => {
+  const rows = await db
+    .selectDistinct({ promoType: promotionsTable.promoType })
+    .from(promotionsTable);
+
+  const types = rows
+    .map((r) => r.promoType)
+    .filter((t): t is string => t != null && t.trim().length > 0)
+    .sort((a, b) => a.localeCompare(b));
+
+  res.json(ListPromotionTypesResponse.parse(types));
 });
 
 router.get("/promotions/:id", requireAuth, async (req, res): Promise<void> => {

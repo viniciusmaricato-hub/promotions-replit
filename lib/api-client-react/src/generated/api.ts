@@ -23,6 +23,7 @@ import type {
   HealthStatus,
   ImportOperatorsBody,
   ImportOperatorsResponse,
+  ListPromotionTypesResponse,
   ListPromotionsParams,
   ListPromotionsResponse,
   ListRunsParams,
@@ -285,6 +286,82 @@ export function useGetPromotionsStats<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetPromotionsStatsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns the sorted list of distinct, non-empty promo type values present in the database.
+ * @summary List distinct promo types
+ */
+export const getListPromotionTypesUrl = () => {
+  return `/api/promotions/types`;
+};
+
+export const listPromotionTypes = async (
+  options?: RequestInit,
+): Promise<ListPromotionTypesResponse> => {
+  return customFetch<ListPromotionTypesResponse>(getListPromotionTypesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListPromotionTypesQueryKey = () => {
+  return [`/api/promotions/types`] as const;
+};
+
+export const getListPromotionTypesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listPromotionTypes>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listPromotionTypes>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListPromotionTypesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listPromotionTypes>>
+  > = ({ signal }) => listPromotionTypes({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listPromotionTypes>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListPromotionTypesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listPromotionTypes>>
+>;
+export type ListPromotionTypesQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary List distinct promo types
+ */
+
+export function useListPromotionTypes<
+  TData = Awaited<ReturnType<typeof listPromotionTypes>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listPromotionTypes>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListPromotionTypesQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

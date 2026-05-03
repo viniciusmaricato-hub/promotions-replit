@@ -4,6 +4,8 @@ import {
   useListPromotions,
   useGetPromotion,
   getGetPromotionQueryKey,
+  useListPromotionTypes,
+  useListOperators,
 } from "@workspace/api-client-react";
 import { format, subDays } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,6 +74,8 @@ type Confidence = "High" | "Medium" | "Low" | "";
 
 export default function Dashboard() {
   const { data: stats, isLoading: statsLoading } = useGetPromotionsStats();
+  const { data: promoTypes } = useListPromotionTypes();
+  const { data: operators } = useListOperators();
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -242,18 +246,28 @@ export default function Dashboard() {
                   className="pl-9"
                 />
               </div>
-              <Input
-                placeholder="Operator..."
-                value={operator}
-                onChange={(e) => { setOperator(e.target.value); setPage(1); }}
-                className="sm:w-40"
-              />
-              <Input
-                placeholder="Promo type..."
-                value={promoType}
-                onChange={(e) => { setPromoType(e.target.value); setPage(1); }}
-                className="sm:w-40"
-              />
+              <Select value={operator || "all"} onValueChange={(v) => { setOperator(v === "all" ? "" : v); setPage(1); }}>
+                <SelectTrigger className="sm:w-48">
+                  <SelectValue placeholder="Operator" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Operators</SelectItem>
+                  {operators?.map((op) => (
+                    <SelectItem key={op.id} value={op.name}>{op.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={promoType || "all"} onValueChange={(v) => { setPromoType(v === "all" ? "" : v); setPage(1); }}>
+                <SelectTrigger className="sm:w-48">
+                  <SelectValue placeholder="Promo type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Promo Types</SelectItem>
+                  {promoTypes?.map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <Select value={platform || "all"} onValueChange={(v) => { setPlatform(v === "all" ? "" : v as Platform); setPage(1); }}>
