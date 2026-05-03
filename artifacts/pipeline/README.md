@@ -95,6 +95,16 @@ Each scheduled run is a one-shot invocation that exits cleanly when finished —
 
 The first run kicks off on the next scheduled tick. Subsequent runs append to the `runs` table, visible on the dashboard's **System Logs** page.
 
+### Development — Replit workflow (in-process scheduler)
+
+A workspace workflow named **"Pipeline Scheduler"** is configured to run
+`pnpm --filter @workspace/pipeline run start`, which boots the in-process
+`node-cron` scheduler defined in `src/index.ts`. It is started
+automatically alongside the other dev workflows so that automated runs
+also happen in the dev environment (default `0 6 * * *` UTC). Override
+the schedule for the dev workflow by setting `PIPELINE_CRON_SCHEDULE` in
+the workspace secrets.
+
 ### Local & one-shot runs
 
 ```bash
