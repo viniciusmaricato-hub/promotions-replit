@@ -16,6 +16,7 @@
     "@workspace/integrations-openai-ai-server": "workspace:*",
     "drizzle-orm": "catalog:",
     "node-cron": "^3.0.3",
+    "resend": "4.0.0",
     "telegram": "^2.26.20"
   },
   "devDependencies": {

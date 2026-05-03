@@ -71,6 +71,33 @@ To obtain the Instagram cookies:
 
 **Note:** Sources for platforms with missing credentials are skipped gracefully — the pipeline continues and logs a `records_fetched: 0` entry for those sources.
 
+## Run Summary Email
+
+After every **scheduled** pipeline run (in-process cron tick or one-shot `--run-now` invocation, including the production Scheduled Deployment) the pipeline emails a digest to `viniciussmaricato@gmail.com` containing:
+
+- Run start/end timestamps and total duration
+- Total jobs processed, posts fetched, promotions inserted, and jobs with errors
+- A per-source table (operator · platform · status · fetched · inserted · error message)
+
+**Manual "Run Now" invocations from the dashboard do NOT send email** — the operator is already watching the live progress counter on the System Logs page.
+
+### Email environment variables
+
+| Variable | Description |
+|---|---|
+| `PIPELINE_NOTIFY_EMAIL` | Recipient address. Defaults to `viniciussmaricato@gmail.com`. Persisted as a shared env var in this workspace. |
+| `PIPELINE_NOTIFY_FROM` | Optional override for the "from" address. Defaults to the verified sender configured on the Resend connection, falling back to `onboarding@resend.dev`. |
+
+### Resend connection
+
+The email is sent via the **Resend** Replit integration. The connection is wired automatically in this workspace via the integrations skill.
+
+**For the production Scheduled Deployment**, the same Resend connection must also be added under the deployment's Connections panel in the Publishing UI (deployment connections are scoped separately from workspace connections). If the connection is missing, the email step logs an error and the run still completes successfully — only the digest is skipped.
+
+### Failure isolation
+
+A failure to send the summary email is logged via `console.error` but never crashes the pipeline run, never affects the rows written to the `runs` table, and never propagates to the cron tick or the `--run-now` exit code.
+
 ## Daily Recurrent Run
 
 The pipeline is designed to run once per day. It is published as a **Replit Scheduled Deployment** that lives alongside the main app's autoscale deployment.
@@ -91,6 +118,8 @@ Each scheduled run is a one-shot invocation that exits cleanly when finished —
    - `INSTAGRAM_SESSION_ID`
    - `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, `TELEGRAM_SESSION` *(only if you have Telegram operators configured)*
    - `AI_INTEGRATIONS_OPENAI_BASE_URL`, `AI_INTEGRATIONS_OPENAI_API_KEY`
+   - `PIPELINE_NOTIFY_EMAIL` *(optional — defaults to `viniciussmaricato@gmail.com`)*
+   - Add the **Resend** connection under the deployment's Connections panel so the run summary email can be sent (see *Run Summary Email* above)
 5. Click **Deploy**
 
 The first run kicks off on the next scheduled tick. Subsequent runs append to the `runs` table, visible on the dashboard's **System Logs** page.

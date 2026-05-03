@@ -113,10 +113,12 @@ export type PipelineProgressEvent =
 
 export interface RunPipelineOptions {
   onProgress?: (event: PipelineProgressEvent) => void;
+  trigger?: "scheduled" | "manual";
 }
 
 export async function runPipeline(options: RunPipelineOptions = {}): Promise<void> {
-  const { onProgress } = options;
+  const { onProgress, trigger = "manual" } = options;
+  const startedAt = new Date();
   const emit = (event: PipelineProgressEvent) => {
     if (!onProgress) return;
     try {
@@ -126,85 +128,98 @@ export async function runPipeline(options: RunPipelineOptions = {}): Promise<voi
     }
   };
 
-  console.log(`[pipeline] Starting pipeline run at ${new Date().toISOString()}`);
-
-  const operators = await getActiveOperators();
-
-  if (operators.length === 0) {
-    console.log(
-      "[pipeline] No active operators found. Add operators in the dashboard to begin scraping.",
-    );
-    emit({ type: "started", total: 0 });
-    emit({ type: "finished", total: 0 });
-    return;
-  }
-
-  type Job = { operator: Operator; platform: "Instagram" | "Telegram"; handle: string };
-  const jobs: Job[] = [];
-  for (const op of operators) {
-    if (op.instagramHandle && op.instagramHandle.trim().length > 0) {
-      jobs.push({ operator: op, platform: "Instagram", handle: op.instagramHandle.trim() });
-    }
-    if (op.telegramHandle && op.telegramHandle.trim().length > 0) {
-      jobs.push({ operator: op, platform: "Telegram", handle: op.telegramHandle.trim() });
-    }
-  }
-
-  if (jobs.length === 0) {
-    console.log(
-      "[pipeline] No active operators have Instagram or Telegram handles configured.",
-    );
-    emit({ type: "started", total: 0 });
-    emit({ type: "finished", total: 0 });
-    return;
-  }
-
-  console.log(
-    `[pipeline] Found ${operators.length} active operator(s) with ${jobs.length} platform job(s)`,
-  );
-
-  emit({ type: "started", total: jobs.length });
-
-  const interSourceDelayMs = Number(process.env["PIPELINE_INTER_SOURCE_DELAY_MS"] ?? "3000");
+  console.log(`[pipeline] Starting pipeline run at ${startedAt.toISOString()}`);
 
   const results: RunStats[] = [];
-  for (let i = 0; i < jobs.length; i++) {
-    const job = jobs[i]!;
-    emit({
-      type: "job-started",
-      index: i,
-      total: jobs.length,
-      source: job.operator.name,
-      platform: job.platform,
-    });
-    const stats = await runForOperatorPlatform(job.operator, job.platform, job.handle);
-    results.push(stats);
-    emit({
-      type: "job-finished",
-      index: i,
-      total: jobs.length,
-      source: job.operator.name,
-      platform: job.platform,
-    });
-    if (i < jobs.length - 1 && interSourceDelayMs > 0) {
-      await sleep(interSourceDelayMs);
+  try {
+    const operators = await getActiveOperators();
+
+    if (operators.length === 0) {
+      console.log(
+        "[pipeline] No active operators found. Add operators in the dashboard to begin scraping.",
+      );
+      emit({ type: "started", total: 0 });
+      emit({ type: "finished", total: 0 });
+      return;
+    }
+
+    type Job = { operator: Operator; platform: "Instagram" | "Telegram"; handle: string };
+    const jobs: Job[] = [];
+    for (const op of operators) {
+      if (op.instagramHandle && op.instagramHandle.trim().length > 0) {
+        jobs.push({ operator: op, platform: "Instagram", handle: op.instagramHandle.trim() });
+      }
+      if (op.telegramHandle && op.telegramHandle.trim().length > 0) {
+        jobs.push({ operator: op, platform: "Telegram", handle: op.telegramHandle.trim() });
+      }
+    }
+
+    if (jobs.length === 0) {
+      console.log(
+        "[pipeline] No active operators have Instagram or Telegram handles configured.",
+      );
+      emit({ type: "started", total: 0 });
+      emit({ type: "finished", total: 0 });
+      return;
+    }
+
+    console.log(
+      `[pipeline] Found ${operators.length} active operator(s) with ${jobs.length} platform job(s)`,
+    );
+
+    emit({ type: "started", total: jobs.length });
+
+    const interSourceDelayMs = Number(process.env["PIPELINE_INTER_SOURCE_DELAY_MS"] ?? "3000");
+
+    for (let i = 0; i < jobs.length; i++) {
+      const job = jobs[i]!;
+      emit({
+        type: "job-started",
+        index: i,
+        total: jobs.length,
+        source: job.operator.name,
+        platform: job.platform,
+      });
+      const stats = await runForOperatorPlatform(job.operator, job.platform, job.handle);
+      results.push(stats);
+      emit({
+        type: "job-finished",
+        index: i,
+        total: jobs.length,
+        source: job.operator.name,
+        platform: job.platform,
+      });
+      if (i < jobs.length - 1 && interSourceDelayMs > 0) {
+        await sleep(interSourceDelayMs);
+      }
+    }
+
+    emit({ type: "finished", total: jobs.length });
+
+    const totalFetched = results.reduce((sum, r) => sum + r.recordsFetched, 0);
+    const totalInserted = results.reduce((sum, r) => sum + r.recordsInserted, 0);
+    const errors = results.filter((r) => r.error !== null);
+
+    console.log(`\n[pipeline] Run complete:`);
+    console.log(`  Jobs processed: ${results.length}`);
+    console.log(`  Total posts fetched: ${totalFetched}`);
+    console.log(`  Total promotions inserted: ${totalInserted}`);
+    if (errors.length > 0) {
+      console.log(
+        `  Jobs with errors: ${errors.map((r) => `${r.source}/${r.platform}`).join(", ")}`,
+      );
+    }
+  } finally {
+    const finishedAt = new Date();
+    console.log(`[pipeline] Done at ${finishedAt.toISOString()}\n`);
+
+    if (trigger === "scheduled") {
+      try {
+        const { sendRunSummaryEmail } = await import("./email.js");
+        await sendRunSummaryEmail({ startedAt, finishedAt, results });
+      } catch (emailErr) {
+        console.error("[pipeline] Failed to send run summary email:", emailErr);
+      }
     }
   }
-
-  emit({ type: "finished", total: jobs.length });
-
-  const totalFetched = results.reduce((sum, r) => sum + r.recordsFetched, 0);
-  const totalInserted = results.reduce((sum, r) => sum + r.recordsInserted, 0);
-  const errors = results.filter((r) => r.error !== null);
-
-  console.log(`\n[pipeline] Run complete:`);
-  console.log(`  Jobs processed: ${results.length}`);
-  console.log(`  Total posts fetched: ${totalFetched}`);
-  console.log(`  Total promotions inserted: ${totalInserted}`);
-  if (errors.length > 0) {
-    console.log(
-      `  Jobs with errors: ${errors.map((r) => `${r.source}/${r.platform}`).join(", ")}`,
-    );
-  }
-  console.log(`[pipeline] Done at ${new Date().toISOString()}\n`);
 }

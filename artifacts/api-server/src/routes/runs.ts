@@ -101,7 +101,7 @@ router.post("/runs/trigger", requireAuth, async (_req, res): Promise<void> => {
   void (async () => {
     try {
       logger.info("[runs/trigger] starting manual pipeline run");
-      await runPipeline({ onProgress: handleProgressEvent });
+      await runPipeline({ onProgress: handleProgressEvent, trigger: "manual" });
       logger.info("[runs/trigger] manual pipeline run completed");
     } catch (err) {
       logger.error({ err }, "[runs/trigger] manual pipeline run failed");

@@ -34,6 +34,7 @@ outputType = "console"
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true
+integrations = ["resend:1.0.0"]
 
 [postMerge]
 path = "scripts/post-merge.sh"
@@ -60,6 +61,7 @@ externalPort = 3000
 [userenv.shared]
 VITE_CLERK_PUBLISHABLE_KEY = "pk_test_YW1hemVkLWxlZWNoLTY1LmNsZXJrLmFjY291bnRzLmRldiQ"
 PIPELINE_CRON_SCHEDULE = "0 6 * * *"
+PIPELINE_NOTIFY_EMAIL = "viniciussmaricato@gmail.com"
 
 [userenv.production]
 FRONTEND_URL = "https://promotions-monitor.replit.app"

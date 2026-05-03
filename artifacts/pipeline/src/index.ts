@@ -11,7 +11,7 @@ async function main() {
 
   if (RUN_NOW_FLAG) {
     console.log("[pipeline] --run-now flag detected, executing immediately...");
-    await runPipeline();
+    await runPipeline({ trigger: "scheduled" });
     process.exit(0);
   }
 
@@ -23,7 +23,7 @@ async function main() {
 
   cron.schedule(CRON_SCHEDULE, async () => {
     try {
-      await runPipeline();
+      await runPipeline({ trigger: "scheduled" });
     } catch (err) {
       console.error("[pipeline] Unhandled error during scheduled run:", err);
     }
