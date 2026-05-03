@@ -100,13 +100,16 @@ export default function Runs() {
         </div>
         <Button
           onClick={() => triggerRun.mutate()}
-          disabled={triggerRun.isPending || isRunning}
+          disabled={triggerRun.isPending}
           className="gap-2"
         >
-          {triggerRun.isPending || isRunning ? (
+          {triggerRun.isPending ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              {isRunning ? "Running..." : "Starting..."}
+              <Loader2 className="h-4 w-4 animate-spin" /> Starting...
+            </>
+          ) : isRunning ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Running...
             </>
           ) : (
             <>
