@@ -399,7 +399,7 @@ export default function Dashboard() {
                       {promo.postDate ? format(new Date(promo.postDate), "MMM d, HH:mm") : "-"}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                      {format(new Date(promo.detectedAt), "MMM d, HH:mm")}
+                      {promo.detectedAt ? format(new Date(promo.detectedAt), "MMM d, HH:mm") : "-"}
                     </TableCell>
                   </TableRow>
                 ))
