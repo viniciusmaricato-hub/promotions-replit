@@ -65,10 +65,10 @@ router.get("/promotions", requireAuth, async (req, res): Promise<void> => {
     conditions.push(eq(promotionsTable.confidenceScore, confidenceScore));
   }
   if (dateFrom) {
-    conditions.push(gte(promotionsTable.postDate, new Date(dateFrom)));
+    conditions.push(gte(promotionsTable.detectedAt, new Date(dateFrom)));
   }
   if (dateTo) {
-    conditions.push(lte(promotionsTable.postDate, new Date(dateTo)));
+    conditions.push(lte(promotionsTable.detectedAt, new Date(dateTo)));
   }
   if (search) {
     conditions.push(
