@@ -342,20 +342,21 @@ export default function Dashboard() {
                 <TableHead>Deposit</TableHead>
                 <TableHead>Confidence</TableHead>
                 <TableHead>Post Date</TableHead>
+                <TableHead>Date Added</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {promotionsLoading ? (
                 Array.from({ length: 10 }).map((_, i) => (
                   <TableRow key={i}>
-                    {Array.from({ length: 8 }).map((__, j) => (
+                    {Array.from({ length: 9 }).map((__, j) => (
                       <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : promotionsData?.promotions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-48 text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="h-48 text-center text-muted-foreground">
                     No promotions match your current filters.
                     <div className="mt-4">
                       <Button variant="outline" onClick={resetFilters}>Reset Filters</Button>
@@ -396,6 +397,9 @@ export default function Dashboard() {
                     <TableCell>{renderConfidenceBadge(promo.confidenceScore)}</TableCell>
                     <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                       {promo.postDate ? format(new Date(promo.postDate), "MMM d, HH:mm") : "-"}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                      {format(new Date(promo.detectedAt), "MMM d, HH:mm")}
                     </TableCell>
                   </TableRow>
                 ))
