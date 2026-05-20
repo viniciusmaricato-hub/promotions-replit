@@ -5,13 +5,22 @@ export interface RawPost {
   postedAt: Date | null;
 }
 
+interface ApifyCaption {
+  text?: string;
+}
+
+interface ApifyUser {
+  username?: string;
+}
+
 interface ApifyPostItem {
   id?: string;
   shortcode?: string;
+  code?: string;
   url?: string;
-  caption?: string;
+  caption?: string | ApifyCaption;
   taken_at?: number;
-  author?: string | { username?: string; pk?: string };
+  user?: ApifyUser;
   error?: string;
   errorDescription?: string;
 }
@@ -25,9 +34,9 @@ interface ApifyRunResponse {
 }
 
 const APIFY_BASE_URL = "https://api.apify.com/v2";
-// instagram-posts-reels-scraper---no-cookies: browser-based, no session needed,
-// correctly scopes results to the requested username.
-const ACTOR_ID = "queenlike_xystos~instagram-posts-reels-scraper---no-cookies";
+// patient_discovery~instagram-posts: browser-based, no session needed,
+// returns real Instagram post data with owner info (user.username).
+const ACTOR_ID = "patient_discovery~instagram-posts";
 const POLL_INTERVAL_MS = 5000;
 const MAX_WAIT_MS = 5 * 60 * 1000;
 
@@ -43,13 +52,28 @@ function getApiToken(): string | null {
   return token;
 }
 
-function extractAuthor(item: ApifyPostItem): string | null {
-  if (typeof item.author === "string") return item.author.toLowerCase();
-  if (typeof item.author === "object" && item.author !== null) {
-    const u = item.author.username;
-    if (typeof u === "string") return u.toLowerCase();
+function extractCaption(item: ApifyPostItem): string | null {
+  const raw = item.caption;
+  if (typeof raw === "string") return raw.trim() || null;
+  if (raw && typeof raw === "object") {
+    const text = raw.text?.trim();
+    if (text) return text;
   }
   return null;
+}
+
+function extractAuthor(item: ApifyPostItem): string | null {
+  const u = item.user?.username;
+  if (typeof u === "string") return u.toLowerCase();
+  return null;
+}
+
+function extractUrl(item: ApifyPostItem): string | null {
+  return (
+    item.url ??
+    (item.shortcode ? `https://www.instagram.com/p/${item.shortcode}/` : null) ??
+    (item.code ? `https://www.instagram.com/p/${item.code}/` : null)
+  );
 }
 
 async function startActorRun(
@@ -208,6 +232,8 @@ export async function fetchInstagramPosts(handle: string, limit = 20): Promise<R
 
   const posts: RawPost[] = [];
   let wrongAccountSkipped = 0;
+  let missingCaption = 0;
+  let missingUrl = 0;
 
   for (const item of items) {
     if (item.error || item.errorDescription) {
@@ -227,15 +253,19 @@ export async function fetchInstagramPosts(handle: string, limit = 20): Promise<R
       continue;
     }
 
-    const text = item.caption?.trim();
-    if (!text) continue;
+    const text = extractCaption(item);
+    if (!text) {
+      missingCaption++;
+      continue;
+    }
 
-    const url =
-      item.url ??
-      (item.shortcode ? `https://www.instagram.com/p/${item.shortcode}/` : null);
-    if (!url) continue;
+    const url = extractUrl(item);
+    if (!url) {
+      missingUrl++;
+      continue;
+    }
 
-    const postId = item.id ?? item.shortcode ?? url;
+    const postId = item.id ?? item.shortcode ?? item.code ?? url;
     // taken_at is a Unix timestamp in seconds
     const postedAt =
       typeof item.taken_at === "number" ? new Date(item.taken_at * 1000) : null;
@@ -246,6 +276,16 @@ export async function fetchInstagramPosts(handle: string, limit = 20): Promise<R
   if (wrongAccountSkipped > 0) {
     console.warn(
       `[instagram/apify] ${username}: blocked ${wrongAccountSkipped} posts from wrong accounts`
+    );
+  }
+  if (missingCaption > 0) {
+    console.warn(
+      `[instagram/apify] ${username}: skipped ${missingCaption} items with missing/empty captions`
+    );
+  }
+  if (missingUrl > 0) {
+    console.warn(
+      `[instagram/apify] ${username}: skipped ${missingUrl} items with missing URLs`
     );
   }
 
