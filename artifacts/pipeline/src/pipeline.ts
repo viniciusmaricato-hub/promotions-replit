@@ -2,7 +2,7 @@ import type { Operator } from "@workspace/db";
 import { fetchTelegramPosts } from "./telegram.js";
 import { fetchInstagramPosts } from "./instagram.js";
 import { extractPromotion, PROMPT_VERSION } from "./llm.js";
-import { isDuplicate, insertPromotion, logRun, getActiveOperators } from "./db.js";
+import { isDuplicate, insertPromotion, logRun, getActiveOperators, purgeContaminatedRows } from "./db.js";
 
 export interface RunStats {
   source: string;
@@ -129,6 +129,17 @@ export async function runPipeline(options: RunPipelineOptions = {}): Promise<voi
   };
 
   console.log(`[pipeline] Starting pipeline run at ${startedAt.toISOString()}`);
+
+  // Purge any rows from the broken Apify actor window (2026-05-09 → 2026-05-21).
+  // No-op once the contaminated data has been removed.
+  try {
+    const purged = await purgeContaminatedRows();
+    if (purged > 0) {
+      console.log(`[pipeline] Purged ${purged} contaminated rows from the broken actor window.`);
+    }
+  } catch (purgeErr) {
+    console.error("[pipeline] Failed to purge contaminated rows:", purgeErr);
+  }
 
   const results: RunStats[] = [];
   try {

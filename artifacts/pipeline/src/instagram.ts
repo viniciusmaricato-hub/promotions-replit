@@ -6,11 +6,12 @@ export interface RawPost {
 }
 
 interface ApifyPostItem {
-  pk?: string;
+  id?: string;
   shortcode?: string;
+  url?: string;
   caption?: string;
-  date?: string;
-  post_url?: string;
+  taken_at?: number;
+  author?: string | { username?: string; pk?: string };
   error?: string;
   errorDescription?: string;
 }
@@ -24,7 +25,9 @@ interface ApifyRunResponse {
 }
 
 const APIFY_BASE_URL = "https://api.apify.com/v2";
-const ACTOR_ID = "instagram-scraper~fast-instagram-post-scraper";
+// instagram-posts-reels-scraper---no-cookies: browser-based, no session needed,
+// correctly scopes results to the requested username.
+const ACTOR_ID = "queenlike_xystos~instagram-posts-reels-scraper---no-cookies";
 const POLL_INTERVAL_MS = 5000;
 const MAX_WAIT_MS = 5 * 60 * 1000;
 
@@ -40,13 +43,22 @@ function getApiToken(): string | null {
   return token;
 }
 
+function extractAuthor(item: ApifyPostItem): string | null {
+  if (typeof item.author === "string") return item.author.toLowerCase();
+  if (typeof item.author === "object" && item.author !== null) {
+    const u = item.author.username;
+    if (typeof u === "string") return u.toLowerCase();
+  }
+  return null;
+}
+
 async function startActorRun(
   token: string,
   username: string,
   limit: number
 ): Promise<string | null> {
   const url = `${APIFY_BASE_URL}/acts/${ACTOR_ID}/runs?token=${token}`;
-  const body = { username: [username], resultsLimit: limit };
+  const body = { username, maxResults: limit };
 
   let res: Response;
   try {
@@ -56,14 +68,14 @@ async function startActorRun(
       body: JSON.stringify(body),
     });
   } catch (err) {
-    console.error(`[instagram/apify] Network error starting actor run for ${username}:`, err);
+    console.error(`[instagram/apify] Network error starting run for ${username}:`, err);
     return null;
   }
 
   if (!res.ok) {
     const text = await res.text().catch(() => "<unreadable>");
     console.error(
-      `[instagram/apify] Failed to start actor run for ${username}: HTTP ${res.status}. Body: ${text.slice(0, 400)}`
+      `[instagram/apify] Failed to start run for ${username}: HTTP ${res.status}. Body: ${text.slice(0, 400)}`
     );
     return null;
   }
@@ -82,7 +94,7 @@ async function startActorRun(
     return null;
   }
 
-  console.log(`[instagram/apify] Started actor run ${runId} for ${username}`);
+  console.log(`[instagram/apify] Started run ${runId} for ${username}`);
   return runId;
 }
 
@@ -180,7 +192,7 @@ export async function fetchInstagramPosts(handle: string, limit = 20): Promise<R
   const token = getApiToken();
   if (!token) return [];
 
-  const username = handle.replace(/^@/, "").trim();
+  const username = handle.replace(/^@/, "").trim().toLowerCase();
   if (!username) {
     console.error("[instagram/apify] Empty handle provided.");
     return [];
@@ -195,6 +207,8 @@ export async function fetchInstagramPosts(handle: string, limit = 20): Promise<R
   const items = await fetchDatasetItems(token, datasetId, username, limit);
 
   const posts: RawPost[] = [];
+  let wrongAccountSkipped = 0;
+
   for (const item of items) {
     if (item.error || item.errorDescription) {
       console.warn(
@@ -203,22 +217,40 @@ export async function fetchInstagramPosts(handle: string, limit = 20): Promise<R
       continue;
     }
 
+    // Safety check: reject posts from a different account
+    const author = extractAuthor(item);
+    if (author !== null && author !== username) {
+      wrongAccountSkipped++;
+      console.warn(
+        `[instagram/apify] ${username}: skipping post from wrong account @${author} (expected @${username})`
+      );
+      continue;
+    }
+
     const text = item.caption?.trim();
     if (!text) continue;
 
     const url =
-      item.post_url ??
+      item.url ??
       (item.shortcode ? `https://www.instagram.com/p/${item.shortcode}/` : null);
     if (!url) continue;
 
-    const postId = item.pk ?? item.shortcode ?? url;
-    const postedAt = item.date ? new Date(item.date) : null;
+    const postId = item.id ?? item.shortcode ?? url;
+    // taken_at is a Unix timestamp in seconds
+    const postedAt =
+      typeof item.taken_at === "number" ? new Date(item.taken_at * 1000) : null;
 
     posts.push({ postId, text, url, postedAt });
   }
 
+  if (wrongAccountSkipped > 0) {
+    console.warn(
+      `[instagram/apify] ${username}: blocked ${wrongAccountSkipped} posts from wrong accounts`
+    );
+  }
+
   console.log(
-    `[instagram/apify] ${username}: ${posts.length} posts with captions out of ${items.length} items`
+    `[instagram/apify] ${username}: ${posts.length} valid posts out of ${items.length} items`
   );
   return posts;
 }
