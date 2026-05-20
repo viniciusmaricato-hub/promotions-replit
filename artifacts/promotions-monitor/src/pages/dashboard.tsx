@@ -67,7 +67,7 @@ function renderConfidenceBadge(score: string) {
   return <Badge className="bg-red-500/10 text-red-600 border-red-200 hover:bg-red-500/20">Low</Badge>;
 }
 
-const DEFAULT_DATE_FROM = format(subDays(new Date(), 7), "yyyy-MM-dd");
+const DEFAULT_DATE_FROM = format(subDays(new Date(), 30), "yyyy-MM-dd");
 
 type Platform = "Instagram" | "Telegram" | "";
 type Confidence = "High" | "Medium" | "Low" | "";
