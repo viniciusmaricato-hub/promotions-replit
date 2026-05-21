@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { runSeedIfNeeded } from "./seed-2026-05-21";
 
 const rawPort = process.env["PORT"];
 
@@ -22,4 +23,8 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  runSeedIfNeeded().catch((seedErr) => {
+    logger.error({ err: seedErr }, "[seed] Failed to run seed");
+  });
 });
