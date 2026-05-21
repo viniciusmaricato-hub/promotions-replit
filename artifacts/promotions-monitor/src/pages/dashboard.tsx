@@ -6,6 +6,7 @@ import {
   getGetPromotionQueryKey,
   useListPromotionTypes,
   useListOperators,
+  exportPromotions,
 } from "@workspace/api-client-react";
 import { format, subDays } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -123,33 +124,54 @@ export default function Dashboard() {
     setPage(1);
   };
 
-  const handleExport = () => {
-    if (!promotionsData?.promotions) return;
-    const headers = ["ID", "Operator", "Platform", "Type", "Offer Details", "Reward", "Min Deposit", "Requires Deposit", "Confidence", "Post Date", "Detected At"];
-    const csvRows = promotionsData.promotions.map((p) => [
-      p.id,
-      p.operator,
-      p.platform,
-      p.promoType ?? "",
-      p.offerDetails ?? "",
-      p.rewardValue ?? "",
-      p.minDeposit ?? "",
-      p.requiresDeposit === null ? "" : p.requiresDeposit ? "Yes" : "No",
-      p.confidenceScore,
-      p.postDate ? format(new Date(p.postDate), "yyyy-MM-dd HH:mm") : "",
-      format(new Date(p.detectedAt), "yyyy-MM-dd HH:mm"),
-    ]);
-    const csvContent = [headers, ...csvRows]
-      .map((e) => e.map((item) => `"${String(item).replace(/"/g, '""')}"`).join(","))
-      .join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `promotions_${format(new Date(), "yyyyMMdd_HHmm")}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const all = await exportPromotions({
+        search: search || undefined,
+        operator: operator || undefined,
+        promoType: promoType || undefined,
+        platform: (platform || undefined) as "Instagram" | "Telegram" | undefined,
+        confidenceScore: (confidence || undefined) as "High" | "Medium" | "Low" | undefined,
+        requiresDeposit:
+          depositFilter === "no-deposit" ? false
+          : depositFilter === "requires-deposit" ? true
+          : undefined,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
+      });
+
+      const headers = ["ID", "Operator", "Platform", "Type", "Offer Details", "Reward", "Min Deposit", "Requires Deposit", "Confidence", "Post Date", "Detected At"];
+      const csvRows = all.promotions.map((p) => [
+        p.id,
+        p.operator,
+        p.platform,
+        p.promoType ?? "",
+        p.offerDetails ?? "",
+        p.rewardValue ?? "",
+        p.minDeposit ?? "",
+        p.requiresDeposit === null ? "" : p.requiresDeposit ? "Yes" : "No",
+        p.confidenceScore,
+        p.postDate ? format(new Date(p.postDate), "yyyy-MM-dd HH:mm") : "",
+        format(new Date(p.detectedAt), "yyyy-MM-dd HH:mm"),
+      ]);
+      const csvContent = [headers, ...csvRows]
+        .map((e) => e.map((item) => `"${String(item).replace(/"/g, '""')}"`).join(","))
+        .join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `promotions_${format(new Date(), "yyyyMMdd_HHmm")}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -161,9 +183,9 @@ export default function Dashboard() {
             Competitor promotional intelligence across Instagram and Telegram.
           </p>
         </div>
-        <Button variant="outline" onClick={handleExport} className="gap-2">
+        <Button variant="outline" onClick={handleExport} disabled={isExporting} className="gap-2">
           <Download className="h-4 w-4" />
-          Export CSV
+          {isExporting ? "Exporting…" : "Export CSV"}
         </Button>
       </div>
 

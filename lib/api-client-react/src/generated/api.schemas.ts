@@ -260,6 +260,17 @@ export type ListPromotionsParams = {
   pageSize?: number;
 };
 
+export type ExportPromotionsParams = {
+  operator?: string;
+  platform?: ListPromotionsPlatform;
+  promoType?: string;
+  requiresDeposit?: boolean;
+  confidenceScore?: ListPromotionsConfidenceScore;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+};
+
 export type ListPromotionsPlatform =
   (typeof ListPromotionsPlatform)[keyof typeof ListPromotionsPlatform];
 

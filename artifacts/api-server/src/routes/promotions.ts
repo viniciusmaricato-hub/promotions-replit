@@ -3,6 +3,7 @@ import { and, desc, gte, lte, ilike, eq, or, count, sql } from "drizzle-orm";
 import { db, promotionsTable } from "@workspace/db";
 import {
   ListPromotionsQueryParams,
+  ExportPromotionsQueryParams,
   GetPromotionParams,
   ListPromotionsResponse,
   GetPromotionResponse,
@@ -200,6 +201,71 @@ router.get("/promotions/types", requireAuth, async (_req, res): Promise<void> =>
     .sort((a, b) => a.localeCompare(b));
 
   res.json(ListPromotionTypesResponse.parse(types));
+});
+
+router.get("/promotions/export", requireAuth, async (req, res): Promise<void> => {
+  const rawQuery = req.query as Record<string, string | undefined>;
+  const queryCoerced = {
+    ...rawQuery,
+    requiresDeposit:
+      rawQuery.requiresDeposit === "true"
+        ? true
+        : rawQuery.requiresDeposit === "false"
+          ? false
+          : undefined,
+    dateFrom: rawQuery.dateFrom ? new Date(rawQuery.dateFrom) : undefined,
+    dateTo: rawQuery.dateTo
+      ? (() => { const d = new Date(rawQuery.dateTo!); d.setUTCHours(23, 59, 59, 999); return d; })()
+      : undefined,
+  };
+  const parsed = ExportPromotionsQueryParams.safeParse(queryCoerced);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const { operator, platform, promoType, requiresDeposit, confidenceScore, dateFrom, dateTo, search } = parsed.data;
+
+  const conditions = [];
+  if (operator) conditions.push(ilike(promotionsTable.operator, `%${operator}%`));
+  if (platform) conditions.push(eq(promotionsTable.platform, platform));
+  if (promoType) conditions.push(ilike(promotionsTable.promoType, `%${promoType}%`));
+  if (requiresDeposit !== undefined) conditions.push(eq(promotionsTable.requiresDeposit, requiresDeposit));
+  if (confidenceScore) conditions.push(eq(promotionsTable.confidenceScore, confidenceScore));
+  if (dateFrom) conditions.push(gte(promotionsTable.detectedAt, new Date(dateFrom)));
+  if (dateTo) conditions.push(lte(promotionsTable.detectedAt, new Date(dateTo)));
+  if (search) {
+    conditions.push(
+      or(
+        ilike(promotionsTable.offerDetails, `%${search}%`),
+        ilike(promotionsTable.operator, `%${search}%`),
+      ),
+    );
+  }
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const rows = await db
+    .select()
+    .from(promotionsTable)
+    .where(where)
+    .orderBy(sql`${promotionsTable.postDate} DESC NULLS LAST`, desc(promotionsTable.detectedAt));
+
+  const promotions = rows.map((p) => ({
+    ...p,
+    postDate: p.postDate?.toISOString() ?? null,
+    detectedAt: p.detectedAt.toISOString(),
+    expiryDate: p.expiryDate ?? null,
+  }));
+
+  res.json(
+    ListPromotionsResponse.parse({
+      promotions,
+      total: promotions.length,
+      page: 1,
+      pageSize: promotions.length,
+    }),
+  );
 });
 
 router.get("/promotions/:id", requireAuth, async (req, res): Promise<void> => {

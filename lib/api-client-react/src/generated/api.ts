@@ -20,6 +20,7 @@ import type {
   CreateOperatorBody,
   CreateSourceBody,
   ErrorResponse,
+  ExportPromotionsParams,
   HealthStatus,
   ImportOperatorsBody,
   ImportOperatorsResponse,
@@ -190,6 +191,29 @@ export type ListPromotionsQueryResult = NonNullable<
   Awaited<ReturnType<typeof listPromotions>>
 >;
 export type ListPromotionsQueryError = ErrorType<ErrorResponse>;
+
+export const getExportPromotionsUrl = (params?: ExportPromotionsParams) => {
+  const normalizedParams = new URLSearchParams();
+  Object.entries(params ?? {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString());
+    }
+  });
+  const stringifiedParams = normalizedParams.toString();
+  return stringifiedParams.length > 0
+    ? `/api/promotions/export?${stringifiedParams}`
+    : `/api/promotions/export`;
+};
+
+export const exportPromotions = async (
+  params?: ExportPromotionsParams,
+  options?: RequestInit,
+): Promise<ListPromotionsResponse> => {
+  return customFetch<ListPromotionsResponse>(getExportPromotionsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
 
 /**
  * @summary List promotions

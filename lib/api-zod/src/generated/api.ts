@@ -41,6 +41,17 @@ export const ListPromotionsQueryParams = zod.object({
     .default(listPromotionsQueryPageSizeDefault),
 });
 
+export const ExportPromotionsQueryParams = zod.object({
+  operator: zod.coerce.string().optional(),
+  platform: zod.enum(["Instagram", "Telegram"]).optional(),
+  promoType: zod.coerce.string().optional(),
+  requiresDeposit: zod.coerce.boolean().optional(),
+  confidenceScore: zod.enum(["High", "Medium", "Low"]).optional(),
+  dateFrom: zod.date().optional(),
+  dateTo: zod.date().optional(),
+  search: zod.coerce.string().optional(),
+});
+
 export const ListPromotionsResponse = zod.object({
   promotions: zod.array(
     zod.object({
