@@ -143,7 +143,13 @@ export default function Dashboard() {
         dateTo: dateTo || undefined,
       });
 
-      const headers = ["ID", "Operator", "Platform", "Type", "Offer Details", "Reward", "Min Deposit", "Requires Deposit", "Confidence", "Post Date", "Detected At"];
+      const headers = [
+        "ID", "Operator", "Platform", "Type", "Offer Details",
+        "Reward Value", "Min Deposit", "Wagering Requirement",
+        "Requires Deposit", "Expiry Date", "Target Audience",
+        "Confidence", "Post Date", "Detected At",
+        "Source URL", "Raw Post Text",
+      ];
       const csvRows = all.promotions.map((p) => [
         p.id,
         p.operator,
@@ -152,10 +158,15 @@ export default function Dashboard() {
         p.offerDetails ?? "",
         p.rewardValue ?? "",
         p.minDeposit ?? "",
-        p.requiresDeposit === null ? "" : p.requiresDeposit ? "Yes" : "No",
+        p.wageringRequirement ?? "",
+        p.requiresDeposit === null || p.requiresDeposit === undefined ? "" : p.requiresDeposit ? "Yes" : "No",
+        p.expiryDate ?? "",
+        p.targetAudience ?? "",
         p.confidenceScore,
         p.postDate ? format(new Date(p.postDate), "yyyy-MM-dd HH:mm") : "",
         format(new Date(p.detectedAt), "yyyy-MM-dd HH:mm"),
+        p.sourceUrl ?? "",
+        p.rawPostText ?? "",
       ]);
       const csvContent = [headers, ...csvRows]
         .map((e) => e.map((item) => `"${String(item).replace(/"/g, '""')}"`).join(","))
