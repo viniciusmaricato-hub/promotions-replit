@@ -16,7 +16,7 @@ async function fetchPosts(platform: "Instagram" | "Telegram", handle: string) {
   if (platform === "Telegram") {
     return fetchTelegramPosts(handle, 20);
   }
-  return fetchInstagramPosts(handle, 20);
+  return fetchInstagramPosts(handle, 5);
 }
 
 export async function runForOperatorPlatform(
