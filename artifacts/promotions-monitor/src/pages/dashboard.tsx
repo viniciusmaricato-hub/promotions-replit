@@ -74,9 +74,15 @@ type Platform = "Instagram" | "Telegram" | "";
 type Confidence = "High" | "Medium" | "Low" | "";
 
 export default function Dashboard() {
-  const { data: stats, isLoading: statsLoading } = useGetPromotionsStats();
-  const { data: promoTypes } = useListPromotionTypes();
-  const { data: operators } = useListOperators();
+  const { data: stats, isLoading: statsLoading } = useGetPromotionsStats({
+    query: { refetchInterval: 30000, staleTime: 0 },
+  });
+  const { data: promoTypes } = useListPromotionTypes({
+    query: { refetchInterval: 30000, staleTime: 0 },
+  });
+  const { data: operators } = useListOperators({
+    query: { refetchInterval: 30000, staleTime: 0 },
+  });
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -89,21 +95,26 @@ export default function Dashboard() {
   const [dateTo, setDateTo] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const { data: promotionsData, isLoading: promotionsLoading } = useListPromotions({
-    page,
-    pageSize: 50,
-    search: search || undefined,
-    operator: operator || undefined,
-    promoType: promoType || undefined,
-    platform: (platform || undefined) as "Instagram" | "Telegram" | undefined,
-    confidenceScore: (confidence || undefined) as "High" | "Medium" | "Low" | undefined,
-    requiresDeposit:
-      depositFilter === "no-deposit" ? false
-      : depositFilter === "requires-deposit" ? true
-      : undefined,
-    dateFrom: dateFrom || undefined,
-    dateTo: dateTo || undefined,
-  });
+  const { data: promotionsData, isLoading: promotionsLoading } = useListPromotions(
+    {
+      page,
+      pageSize: 50,
+      search: search || undefined,
+      operator: operator || undefined,
+      promoType: promoType || undefined,
+      platform: (platform || undefined) as "Instagram" | "Telegram" | undefined,
+      confidenceScore: (confidence || undefined) as "High" | "Medium" | "Low" | undefined,
+      requiresDeposit:
+        depositFilter === "no-deposit" ? false
+        : depositFilter === "requires-deposit" ? true
+        : undefined,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+    },
+    {
+      query: { refetchInterval: 30000, staleTime: 0 },
+    },
+  );
 
   const { data: detailData, isLoading: detailLoading } = useGetPromotion(selectedId ?? "", {
     query: {
