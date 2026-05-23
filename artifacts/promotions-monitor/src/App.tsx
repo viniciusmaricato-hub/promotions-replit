@@ -12,6 +12,7 @@ import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import Operators from "@/pages/operators";
 import Runs from "@/pages/runs";
+import ApiKeys from "@/pages/api-keys";
 import { Layout } from "@/components/layout";
 
 const queryClient = new QueryClient();
@@ -158,6 +159,9 @@ function ClerkProviderWithRoutes() {
           </Route>
           <Route path="/runs">
             <ProtectedRoute component={Runs} />
+          </Route>
+          <Route path="/api-keys">
+            <ProtectedRoute component={ApiKeys} />
           </Route>
           <Route component={NotFound} />
         </Switch>

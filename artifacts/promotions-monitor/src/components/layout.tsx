@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useClerk, UserButton } from "@clerk/react";
-import { LayoutDashboard, Activity, Building2, LogOut } from "lucide-react";
+import { LayoutDashboard, Activity, Building2, LogOut, KeyRound } from "lucide-react";
 
 export function Layout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
@@ -11,6 +11,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { label: "Dashboard", href: "/", icon: LayoutDashboard },
     { label: "Operators", href: "/operators", icon: Building2 },
     { label: "Run Logs", href: "/runs", icon: Activity },
+    { label: "API Keys", href: "/api-keys", icon: KeyRound },
   ];
 
   return (

@@ -11,10 +11,11 @@ import {
   ListPromotionTypesResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireApiKeyOrAuth } from "../middlewares/requireApiKeyOrAuth";
 
 const router: IRouter = Router();
 
-router.get("/promotions", requireAuth, async (req, res): Promise<void> => {
+router.get("/promotions", requireApiKeyOrAuth, async (req, res): Promise<void> => {
   const rawQuery = req.query as Record<string, string | undefined>;
   const queryCoerced = {
     ...rawQuery,
@@ -110,7 +111,7 @@ router.get("/promotions", requireAuth, async (req, res): Promise<void> => {
   );
 });
 
-router.get("/promotions/stats", requireAuth, async (_req, res): Promise<void> => {
+router.get("/promotions/stats", requireApiKeyOrAuth, async (_req, res): Promise<void> => {
   const now = new Date();
   const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
@@ -190,7 +191,7 @@ router.get("/promotions/stats", requireAuth, async (_req, res): Promise<void> =>
   );
 });
 
-router.get("/promotions/types", requireAuth, async (_req, res): Promise<void> => {
+router.get("/promotions/types", requireApiKeyOrAuth, async (_req, res): Promise<void> => {
   const rows = await db
     .selectDistinct({ promoType: promotionsTable.promoType })
     .from(promotionsTable);
@@ -203,7 +204,7 @@ router.get("/promotions/types", requireAuth, async (_req, res): Promise<void> =>
   res.json(ListPromotionTypesResponse.parse(types));
 });
 
-router.get("/promotions/export", requireAuth, async (req, res): Promise<void> => {
+router.get("/promotions/export", requireApiKeyOrAuth, async (req, res): Promise<void> => {
   const rawQuery = req.query as Record<string, string | undefined>;
   const queryCoerced = {
     ...rawQuery,
@@ -268,7 +269,7 @@ router.get("/promotions/export", requireAuth, async (req, res): Promise<void> =>
   );
 });
 
-router.get("/promotions/:id", requireAuth, async (req, res): Promise<void> => {
+router.get("/promotions/:id", requireApiKeyOrAuth, async (req, res): Promise<void> => {
   const params = GetPromotionParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
